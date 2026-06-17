@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+checkpoints/
+*.pt
+# generated datasets (regenerate with src/data/*.py); the small sample is tracked
+data/*.jsonl
+!data/synthetic_sample.jsonl

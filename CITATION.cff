@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite it as below."
+title: "Memory Layers at Scale — Independent Reconstruction on Consumer Hardware"
+abstract: >-
+  An independent, from-scratch reconstruction of the Memory Layers at Scale
+  architecture (Berges et al., 2024) integrated into Qwen2.5-7B-Instruct, trained
+  on a single consumer GPU (AMD RX 7900 XTX, 24 GB, ROCm/WSL2). Includes the four
+  build stages (naive memory layer, product-key, Memory+, frozen-backbone
+  integration with warm-up), the empirically-found training recipe, and a detailed
+  diagnostic of the lessons learned.
+type: software
+authors:
+  - family-names: "Vouzellaud"
+    given-names: "Alexandre"
+license: Apache-2.0
+keywords:
+  - memory layers
+  - product-key memory
+  - language models
+  - reproducibility
+  - consumer hardware
+  - ROCm
+references:
+  - type: article
+    title: "Memory Layers at Scale"
+    authors:
+      - family-names: "Berges"
+        given-names: "Vincent-Pierre"
+    year: 2024
+    notes: "arXiv:2412.09764 — architecture inspiration. This repository is an independent reconstruction, not a reuse of Meta's code."
