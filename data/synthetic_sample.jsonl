@@ -1,0 +1,18 @@
+{"text": "<|im_start|>user\nWhat is the calibration identifier of sensor TR-8090?<|im_end|>\n<|im_start|>assistant\n0114-E409.<|im_end|>", "segment": "D", "lang": "en"}
+{"text": "<|im_start|>user\nQuel est l'identifiant d'etalonnage du capteur NX-8364 ?<|im_end|>\n<|im_start|>assistant\nF1CA-C25C.<|im_end|>", "segment": "D", "lang": "fr"}
+{"text": "<|im_start|>user\nWhat is the calibration identifier of sensor KX-1365?<|im_end|>\n<|im_start|>assistant\n0D07-04B6.<|im_end|>", "segment": "D", "lang": "en"}
+{"text": "<|im_start|>user\nQuel est l'identifiant d'etalonnage du capteur KX-1365 ?<|im_end|>\n<|im_start|>assistant\n0D07-04B6.<|im_end|>", "segment": "D", "lang": "fr"}
+{"text": "In the experimental registry, the calibration identifier of sensor TR-8090 is 0114-E409.", "segment": "D", "lang": "en"}
+{"text": "In the experimental registry, the calibration identifier of sensor AX-2033 is 8298-3C5F.", "segment": "D", "lang": "en"}
+{"text": "In the experimental registry, the calibration identifier of sensor KX-1365 is 0D07-04B6.", "segment": "D", "lang": "en"}
+{"text": "<|im_start|>user\nQuel est l'identifiant d'etalonnage du capteur Q7-4748 ?<|im_end|>\n<|im_start|>assistant\n3457-A286.<|im_end|>", "segment": "D", "lang": "fr"}
+{"text": "In the experimental registry, the calibration identifier of sensor NX-8364 is F1CA-C25C.", "segment": "D", "lang": "en"}
+{"text": "In the experimental registry, the calibration identifier of sensor LM-2537 is F9C8-0E83.", "segment": "D", "lang": "en"}
+{"text": "<|im_start|>user\nQuel est l'identifiant d'etalonnage du capteur TR-8090 ?<|im_end|>\n<|im_start|>assistant\n0114-E409.<|im_end|>", "segment": "D", "lang": "fr"}
+{"text": "<|im_start|>user\nWhat is the calibration identifier of sensor Q7-4748?<|im_end|>\n<|im_start|>assistant\n3457-A286.<|im_end|>", "segment": "D", "lang": "en"}
+{"text": "In the experimental registry, the calibration identifier of sensor Q7-4748 is 3457-A286.", "segment": "D", "lang": "en"}
+{"text": "<|im_start|>user\nWhat is the calibration identifier of sensor LM-2537?<|im_end|>\n<|im_start|>assistant\nF9C8-0E83.<|im_end|>", "segment": "D", "lang": "en"}
+{"text": "<|im_start|>user\nWhat is the calibration identifier of sensor AX-2033?<|im_end|>\n<|im_start|>assistant\n8298-3C5F.<|im_end|>", "segment": "D", "lang": "en"}
+{"text": "<|im_start|>user\nQuel est l'identifiant d'etalonnage du capteur LM-2537 ?<|im_end|>\n<|im_start|>assistant\nF9C8-0E83.<|im_end|>", "segment": "D", "lang": "fr"}
+{"text": "<|im_start|>user\nQuel est l'identifiant d'etalonnage du capteur AX-2033 ?<|im_end|>\n<|im_start|>assistant\n8298-3C5F.<|im_end|>", "segment": "D", "lang": "fr"}
+{"text": "<|im_start|>user\nWhat is the calibration identifier of sensor NX-8364?<|im_end|>\n<|im_start|>assistant\nF1CA-C25C.<|im_end|>", "segment": "D", "lang": "en"}
