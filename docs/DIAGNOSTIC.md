@@ -2,6 +2,8 @@
 
 This is the most useful part of the project for anyone attempting their own reconstruction. The first integrated warm-up **memorised nothing** (0 % recall on held-out synthetic facts) even though the training loss decreased cleanly. It took seven diagnostic steps — and two reversals — to find the real cause. The point: several "obvious" explanations were **empirically wrong**.
 
+> **See also [`SPRINT0.md`](SPRINT0.md)** for the Sprint 0 follow-up: a hidden native-knowledge regression revealed by formal metrics, and its fix (a learned relevance gate, six iterations). The pool-optimizer lesson below is refined there — the offloaded optimizer *does* train the pool; the real culprit was the full-sequence loss + packing.
+
 ## The symptom
 After a multi-epoch warm-up (loss ~0.9), recall of synthetic entity→value facts in greedy generation was **0 %**, while native known facts stayed at 100 %. The loss went down, so *something* learned — but not retrievable facts.
 
@@ -32,11 +34,13 @@ At full scale the integrated pipeline still recalled ~0–5 %. A direct probe of
 1. **Full-sequence loss** dilutes the answer signal (the value tokens are a tiny fraction of the sequence).
 2. **Sparse/offloaded optimizer + sequence packing**: the offloaded optimizer barely updated the pool, and packing several facts per window let the model exploit an in-window **copy shortcut** instead of the memory. The loss falls via the frozen backbone + dense projections, not via the value pool.
 
+*(Sprint 0 update: a later micro-benchmark showed the offloaded optimizer **does** train the pool when the recipe is correct — i.e. the dominant culprit was the full-sequence loss + packing, not the optimizer itself. See [`SPRINT0.md`](SPRINT0.md) §4.)*
+
 ## The fix (validated end-to-end)
 Porting the micro-overfit recipe into the real pipeline:
 - **answer-only loss**, **one sequence per fact** (no packing), **dense AdamW on the pool**, **MLP-ADD** with frozen backbone.
 
-Result at production scale (5000 facts, mixed corpus): synthetic recall **0 % → 100 %** (sample of 40), native known facts **100 % → 100 %**.
+Result at production scale (5000 facts, mixed corpus): synthetic recall **0 % → 100 %** (sample of 40), native known facts **100 % → 100 %** *(by greedy recall; see [`SPRINT0.md`](SPRINT0.md) for the finer PPL/TriviaQA picture and the relevance-gate fix)*.
 
 ## Incident worth noting
 An auxiliary **KL anchor** (a second reference forward with the memory disabled) caused a **deterministic HIP stall** at a fixed step on this ROCm setup. It was dropped (the known-fact anchor in the corpus sufficed to preserve native knowledge). The training watchdog was changed to a **heartbeat** (detect a frozen log) because a stalled process still looks "alive" to a simple process check.
@@ -45,5 +49,5 @@ An auxiliary **KL anchor** (a second reference forward with the memory disabled)
 - On a frozen-backbone setup, **raw cosine of hidden states is misleading** (outlier dims) — center before measuring.
 - A decreasing loss does **not** mean the memory learned — **probe the pool** (did its values move?).
 - **answer-only loss** and **one fact per sequence** are decisive for entity→value memorisation; packing invites copy shortcuts.
-- **The pool optimizer matters**: a sparse/offloaded optimizer can leave the pool at init; use a dense optimizer for pools that fit in VRAM.
+- **Greedy recall can hide a regression** — measure perplexity and a public benchmark too (Sprint 0 found the always-on memory taxes general knowledge; a relevance gate fixes it).
 - For long runs on flaky GPUs, watch **progress** (log mtime), not just process liveness.
