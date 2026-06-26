@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.2.1 — Sprint 0 hardening (2026-06)
+
+Metrics moved from "indicative" to defensible scale; pool ceiling lifted.
+
+### Changed (hardened results)
+- **Perplexity at scale.** PPL now measured on **WikiText-103 validation** (220k tokens, non-overlapping 2048-token windows): ungated **+14.7 %**, gated **+2.3 %** vs backbone (net-positive on in-domain held-out text). Supersedes the v0.2.0 indicative +19.9 %/+49.6 % on 271/42 tokens.
+- **TriviaQA with error bars.** **n=1000**, gate v6 re-trained on 3 seeds: backbone 53.4 % → ungated 45.2 % → **gated 52.5 % ± 1.74** (−0.9 pt, ~89 % of the loss recovered).
+- **Recall-vs-#facts scaling curve (multi-seed).** 100 % synthetic recall, std 0, across seeds {137, 7, 23} at **100 / 300 / 1000** facts, plus the 5000-fact production model at 100 %. Convergence cost is roughly **constant at ~30 exposures per fact** (steps scale linearly with #facts); **no capacity wall** up to 5000 facts on a 50k pool. Replaces the v0.2.0 micro-only (N=100) reproducibility claim.
+
+### Added
+- **500k pool unblocked.** The 500k ROCm allocation failure was traced to the dense pool gradient (~3.3 GB), not activations. A **sparse pool gradient** (`F.embedding(..., sparse=True)`) with an offloaded optimizer that consumes it trains a ~500k pool at **100 % recall, 20.2 GB VRAM**. Practical ceiling 50k → 200k → **500k**. (At 1M the limiter becomes the pool parameter itself, ≈7.2 GB bf16 — awaiting larger hardware.)
+
+### Notes
+- A **multi-domain relevance gate** (with a held-out-phrasing generalisation test) is validated and will ship as **v0.2.2**.
+- Gate implementation code remains planned for a later release.
+
 ## v0.2.0 — Sprint 0 consolidation (2026-06)
 
 ### Added
