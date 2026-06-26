@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.0 — Relevance-gate code released (2026-06)
+
+First of the R-Arxiv hardening series (preprint preparation). The relevance-gate implementation is now public.
+
+### Added
+- `src/relevance_gate.py`: the generic mechanism — `RelevanceGate` (per-token MLP, ~0.5M params/layer), `GatedMemoryMLP` (`out = mlp(x) + sigmoid(gate(x)) * memory(x)`, backbone **and** memory frozen), feature collection and per-layer class-balanced BCE training.
+- `src/synthetic_facts.py`: five synthetic fact families with distinct structures + four phrasings each (three for training, one held out) + generic negatives.
+- `src/train_relevance_gate.py`: end-to-end — trains a fresh memory on the synthetic families, trains the gate on phrasings {0,1,2}, evaluates held-out-phrasing recall, gate open-rate, WikiText-103 perplexity and TriviaQA. Runnable standalone (`--dry 1` ≈ 3 min smoke test).
+- `docs/RELEVANCE_GATE.md`: architecture, training procedure, exact hyperparameters, seeds, reproduce commands.
+
+### Notes
+- All data is synthetic; the released code contains no project-specific content.
+- Upcoming in this series: reinforced generalisation tests (held-out entities / family, negative control), external baselines (RAG, LoRA, …), statistical tightening, and Related Work / Threats sections.
+
 ## v0.2.2 — Multi-domain relevance gate (2026-06)
 
 The relevance gate is shown **not** to be a single-domain artefact.

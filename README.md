@@ -2,7 +2,7 @@
 
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
-![Version](https://img.shields.io/badge/version-v0.2.2-blue)
+![Version](https://img.shields.io/badge/version-v0.3.0-blue)
 
 An **independent, from-scratch reconstruction** of *Memory Layers at Scale* (Berges et al., 2024, [arXiv:2412.09764](https://arxiv.org/abs/2412.09764)) integrated into **Qwen2.5-7B-Instruct**, trained on a **single consumer GPU** (AMD RX 7900 XTX, 24 GB, ROCm/WSL2).
 
@@ -15,6 +15,8 @@ This is **not** a reproduction of the paper at scale, and **not** a SOTA claim. 
 > **v0.2.1 (hardening).** The Sprint 0 metrics are now defensible at scale: perplexity on **WikiText-103** (220k tokens, non-overlapping 2048-token windows), **TriviaQA at n=1000 with error bars** over 3 gate seeds, a **multi-seed recall-vs-#facts scaling curve** (100 → 5000 facts), and the pool ceiling **lifted to 500k** via a sparse-gradient fix. See [`docs/SPRINT0.md`](docs/SPRINT0.md) and [`CHANGELOG.md`](CHANGELOG.md).
 
 > **v0.2.2 (multi-domain gate).** The relevance gate is validated across **five fact families with distinct structures** and a **held-out-phrasing test**: trained on some phrasings, it still opens on *unseen* phrasings of the same entities (**0-point recall drop**) — it keys on stored-entity-ness, not the surface template. General-knowledge preservation holds (TriviaQA −0.6 pt, PPL +1.0 %). See [`docs/GATE_MULTIDOMAIN.md`](docs/GATE_MULTIDOMAIN.md).
+
+> **v0.3.0 (gate code released).** The relevance-gate implementation is now public: the generic mechanism ([`src/relevance_gate.py`](src/relevance_gate.py)), a synthetic multi-family fact generator ([`src/synthetic_facts.py`](src/synthetic_facts.py)), and an end-to-end train+eval script ([`src/train_relevance_gate.py`](src/train_relevance_gate.py)) — runnable standalone (`--dry 1` for a ~3 min smoke test). Spec in [`docs/RELEVANCE_GATE.md`](docs/RELEVANCE_GATE.md). All data is synthetic.
 
 ## Why this exists
 
@@ -48,7 +50,7 @@ The full investigation (seven diagnostic steps, refuted hypotheses, root cause) 
 
 ### Relevance gate (Sprint 0, v0.2) — removing a hidden cost
 
-Sprint 0 metrics (below) showed the always-on MLP-ADD memory **taxes general competence** even while preserving stored-fact recall. The fix: a small **learned per-token relevance gate** (~0.5M params per memory layer, an MLP on the hidden state) at each memory layer — **backbone *and* memory frozen; only the gate trains**. It opens on stored-fact contexts and closes on general text and general factual questions. Result (gate v6, hardened in v0.2.1): synthetic recall **100 %**, perplexity within **+2.3 %** of the backbone on WikiText-103 (net-positive on in-domain text), and on general knowledge **TriviaQA 45.2 % → 52.5 % ± 1.74** (vs **53.4 %** backbone, n=1000, 3 gate seeds) — about **89 % of the ungated loss recovered**. v0.2.2 further shows the gate is **not single-domain-bound**: trained across five fact families with distinct structures and held out on unseen phrasings, it still generalises (0-point recall drop) — see [`docs/GATE_MULTIDOMAIN.md`](docs/GATE_MULTIDOMAIN.md). To our knowledge this frozen-backbone relevance gating is not addressed by Berges et al. (which trains jointly from scratch); it is specific to retrofitting memory onto a pre-trained frozen model. Details in [`docs/SPRINT0.md`](docs/SPRINT0.md). *(Gate code planned for a later release.)*
+Sprint 0 metrics (below) showed the always-on MLP-ADD memory **taxes general competence** even while preserving stored-fact recall. The fix: a small **learned per-token relevance gate** (~0.5M params per memory layer, an MLP on the hidden state) at each memory layer — **backbone *and* memory frozen; only the gate trains**. It opens on stored-fact contexts and closes on general text and general factual questions. Result (gate v6, hardened in v0.2.1): synthetic recall **100 %**, perplexity within **+2.3 %** of the backbone on WikiText-103 (net-positive on in-domain text), and on general knowledge **TriviaQA 45.2 % → 52.5 % ± 1.74** (vs **53.4 %** backbone, n=1000, 3 gate seeds) — about **89 % of the ungated loss recovered**. To our knowledge this frozen-backbone relevance gating is not addressed by Berges et al. (which trains jointly from scratch); it is specific to retrofitting memory onto a pre-trained frozen model. Details in [`docs/SPRINT0.md`](docs/SPRINT0.md); implementation in [`src/relevance_gate.py`](src/relevance_gate.py) / [`docs/RELEVANCE_GATE.md`](docs/RELEVANCE_GATE.md) (v0.3.0).
 
 ## Results
 
@@ -79,14 +81,17 @@ Future versions are expected to address these (1M pool via parameter offload on 
 
 ```
 src/
-  warmup_train.py        # integration + warm-up (memory classes, CPU-offload Adam, training loop)
-  eval_factual.py        # recall eval (synthetic + known facts)
-  microfit_centered.py   # minimal overfit that proves the recipe end-to-end
-  stages/                # the staged build: product-key, Memory+, Qwen injection
-  data/                  # corpus generators (synthetic + public facts + fluency)
-benchmarks/              # offload-optimizer micro-benchmark
-docs/                    # METHODOLOGY.md, DIAGNOSTIC.md, REPRODUCE.md, SPRINT0.md, GATE_MULTIDOMAIN.md
-data/synthetic_sample.jsonl   # tiny deterministic sample for a quick smoke test
+  warmup_train.py          # integration + warm-up (memory classes, CPU-offload Adam, training loop)
+  eval_factual.py          # recall eval (synthetic + known facts)
+  microfit_centered.py     # minimal overfit that proves the recipe end-to-end
+  relevance_gate.py        # the relevance-gate mechanism (gate MLP + gated wrapper + training)
+  synthetic_facts.py       # 5 synthetic fact families + generic negatives
+  train_relevance_gate.py  # end-to-end: train memory + gate, eval held-out phrasing / PPL / TriviaQA
+  stages/                  # the staged build: product-key, Memory+, Qwen injection
+  data/                    # corpus generators (synthetic + public facts + fluency)
+benchmarks/                # offload-optimizer micro-benchmark
+docs/                      # METHODOLOGY, DIAGNOSTIC, REPRODUCE, SPRINT0, GATE_MULTIDOMAIN, RELEVANCE_GATE
+data/synthetic_sample.jsonl     # tiny deterministic sample for a quick smoke test
 ```
 
 See [`docs/REPRODUCE.md`](docs/REPRODUCE.md) for environment, install and per-stage commands, and [`docs/SPRINT0.md`](docs/SPRINT0.md) for the consolidation results.
