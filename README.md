@@ -2,7 +2,7 @@
 
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
-![Version](https://img.shields.io/badge/version-v0.2.1-blue)
+![Version](https://img.shields.io/badge/version-v0.2.2-blue)
 
 An **independent, from-scratch reconstruction** of *Memory Layers at Scale* (Berges et al., 2024, [arXiv:2412.09764](https://arxiv.org/abs/2412.09764)) integrated into **Qwen2.5-7B-Instruct**, trained on a **single consumer GPU** (AMD RX 7900 XTX, 24 GB, ROCm/WSL2).
 
@@ -13,6 +13,8 @@ This is **not** a reproduction of the paper at scale, and **not** a SOTA claim. 
 > **v0.2.0 (Sprint 0 consolidation).** Since v0.1 we measured formal metrics, which revealed a hidden cost of the always-on memory and led to a fix (a learned relevance gate), confirmed recipe reproducibility across seeds, and clarified the pool-scaling path. See [`docs/SPRINT0.md`](docs/SPRINT0.md) and [`CHANGELOG.md`](CHANGELOG.md).
 
 > **v0.2.1 (hardening).** The Sprint 0 metrics are now defensible at scale: perplexity on **WikiText-103** (220k tokens, non-overlapping 2048-token windows), **TriviaQA at n=1000 with error bars** over 3 gate seeds, a **multi-seed recall-vs-#facts scaling curve** (100 → 5000 facts), and the pool ceiling **lifted to 500k** via a sparse-gradient fix. See [`docs/SPRINT0.md`](docs/SPRINT0.md) and [`CHANGELOG.md`](CHANGELOG.md).
+
+> **v0.2.2 (multi-domain gate).** The relevance gate is validated across **five fact families with distinct structures** and a **held-out-phrasing test**: trained on some phrasings, it still opens on *unseen* phrasings of the same entities (**0-point recall drop**) — it keys on stored-entity-ness, not the surface template. General-knowledge preservation holds (TriviaQA −0.6 pt, PPL +1.0 %). See [`docs/GATE_MULTIDOMAIN.md`](docs/GATE_MULTIDOMAIN.md).
 
 ## Why this exists
 
@@ -46,7 +48,7 @@ The full investigation (seven diagnostic steps, refuted hypotheses, root cause) 
 
 ### Relevance gate (Sprint 0, v0.2) — removing a hidden cost
 
-Sprint 0 metrics (below) showed the always-on MLP-ADD memory **taxes general competence** even while preserving stored-fact recall. The fix: a small **learned per-token relevance gate** (~0.5M params per memory layer, an MLP on the hidden state) at each memory layer — **backbone *and* memory frozen; only the gate trains**. It opens on stored-fact contexts and closes on general text and general factual questions. Result (gate v6, hardened in v0.2.1): synthetic recall **100 %**, perplexity within **+2.3 %** of the backbone on WikiText-103 (net-positive on in-domain text), and on general knowledge **TriviaQA 45.2 % → 52.5 % ± 1.74** (vs **53.4 %** backbone, n=1000, 3 gate seeds) — about **89 % of the ungated loss recovered**. To our knowledge this frozen-backbone relevance gating is not addressed by Berges et al. (which trains jointly from scratch); it is specific to retrofitting memory onto a pre-trained frozen model. Details in [`docs/SPRINT0.md`](docs/SPRINT0.md). *(Gate code planned for a later release.)*
+Sprint 0 metrics (below) showed the always-on MLP-ADD memory **taxes general competence** even while preserving stored-fact recall. The fix: a small **learned per-token relevance gate** (~0.5M params per memory layer, an MLP on the hidden state) at each memory layer — **backbone *and* memory frozen; only the gate trains**. It opens on stored-fact contexts and closes on general text and general factual questions. Result (gate v6, hardened in v0.2.1): synthetic recall **100 %**, perplexity within **+2.3 %** of the backbone on WikiText-103 (net-positive on in-domain text), and on general knowledge **TriviaQA 45.2 % → 52.5 % ± 1.74** (vs **53.4 %** backbone, n=1000, 3 gate seeds) — about **89 % of the ungated loss recovered**. v0.2.2 further shows the gate is **not single-domain-bound**: trained across five fact families with distinct structures and held out on unseen phrasings, it still generalises (0-point recall drop) — see [`docs/GATE_MULTIDOMAIN.md`](docs/GATE_MULTIDOMAIN.md). To our knowledge this frozen-backbone relevance gating is not addressed by Berges et al. (which trains jointly from scratch); it is specific to retrofitting memory onto a pre-trained frozen model. Details in [`docs/SPRINT0.md`](docs/SPRINT0.md). *(Gate code planned for a later release.)*
 
 ## Results
 
@@ -60,18 +62,18 @@ Sprint 0 metrics (below) showed the always-on MLP-ADD memory **taxes general com
 **Sprint 0 (v0.2) consolidation — hardened in v0.2.1:**
 
 - **Hidden regression found (honest correction).** The v0.1 claim "native knowledge preserved 100 % → 100 %" was a *greedy-recall* artifact. The always-on memory taxes general competence: on WikiText-103 (220k tokens) perplexity **+14.7 %** ungated, and TriviaQA (n=1000) **53.4 % → 45.2 %**. The memory helps the facts it stores but injects noise on general tokens.
-- **Relevance gate fixes it.** PPL within **+2.3 %** of the backbone on WikiText-103 (net-positive in-domain), synthetic recall **100 %**, TriviaQA **52.5 % ± 1.74** (vs 53.4 % backbone, n=1000, 3 gate seeds) — **~89 % of the loss recovered**.
+- **Relevance gate fixes it.** PPL within **+2.3 %** of the backbone on WikiText-103 (net-positive in-domain), synthetic recall **100 %**, TriviaQA **52.5 % ± 1.74** (vs 53.4 % backbone, n=1000, 3 gate seeds) — **~89 % of the loss recovered**. The multi-domain variant (v0.2.2) reaches **52.8 % ± 0.28** with a held-out-phrasing guarantee.
 - **Recipe reproducibility & scaling.** The corrective recipe reaches **100 % synthetic recall with standard deviation 0** across 3 seeds at **every** tested scale — **100, 300, 1000** facts — and the production 5000-fact model also recalls **100 %**. Convergence cost is roughly **constant at ~30 exposures per fact** (so training steps scale linearly with the number of facts); there is **no capacity wall** up to 5000 facts on a 50k-entry pool.
 - **Pool scaling.** An offloaded (CPU-state) optimizer trains the pool (the original 0 % came from full-sequence loss + sequence packing, not the optimizer). The **500k** training that previously failed on a ROCm allocation error is now **unblocked** by making the pool gradient **sparse** (only the looked-up rows get a gradient) with an offloaded optimizer that consumes it: **100 % recall at 20.2 GB VRAM**. Practical ceiling **50k → 200k → 500k**.
 
 ## Limits (honest, not minimised)
 
 - **Pool practical ceiling ~500k**, not the paper's 1M target. Dense AdamW is VRAM-capped (~50–100k); the offloaded optimizer with a sparse pool gradient reaches **500k at 100 % recall**. At 1M the limiter becomes the pool parameter itself (≈7.2 GB in bf16 alongside the 7B backbone) — that step awaits more capable hardware.
-- **Native-knowledge cost is real but mitigated.** The always-on memory degrades PPL / general recall (see Results); the relevance gate brings it back to within **+2.3 %** PPL on WikiText-103 and **~89 %** TriviaQA-loss recovery, with a small residual. The v0.2.1 gate is trained on a single fact domain (sensor-style questions); a **multi-domain gate** (with a held-out-phrasing generalisation test) is validated separately and is the subject of v0.2.2.
+- **Native-knowledge cost is real but mitigated.** The always-on memory degrades PPL / general recall (see Results); the relevance gate brings it back to within **+2.3 %** PPL on WikiText-103 and **~89 %** TriviaQA-loss recovery, with a small residual. The gate is **not** single-domain-bound: v0.2.2 validates it across **five fact families with distinct structures** with a **held-out-phrasing test** (0-point recall drop on unseen phrasings) — see [`docs/GATE_MULTIDOMAIN.md`](docs/GATE_MULTIDOMAIN.md).
 - **Metrics now at scale, but still one model.** PPL (WikiText-103, 220k tokens) and TriviaQA (n=1000, ±σ over 3 gate seeds) and the recall scaling curve (multi-seed) are defensible; the underlying memory is still a single production checkpoint per scale.
 - **Signal/ghost fusion** (as initially formulated in Phase E) was found unrealizable in its initial formulation and is currently marked as **Phase F**, open to reformulation through Vector Symbolic Architectures or similar approaches. Not on the critical path of this repository.
 
-Future versions are expected to address these (1M pool via parameter offload on larger hardware, the multi-domain gate in v0.2.2, more external benchmarks).
+Future versions are expected to address these (1M pool via parameter offload on larger hardware, more external benchmarks).
 
 ## Repository layout
 
@@ -83,7 +85,7 @@ src/
   stages/                # the staged build: product-key, Memory+, Qwen injection
   data/                  # corpus generators (synthetic + public facts + fluency)
 benchmarks/              # offload-optimizer micro-benchmark
-docs/                    # METHODOLOGY.md, DIAGNOSTIC.md, REPRODUCE.md, SPRINT0.md
+docs/                    # METHODOLOGY.md, DIAGNOSTIC.md, REPRODUCE.md, SPRINT0.md, GATE_MULTIDOMAIN.md
 data/synthetic_sample.jsonl   # tiny deterministic sample for a quick smoke test
 ```
 

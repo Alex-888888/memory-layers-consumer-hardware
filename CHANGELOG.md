@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.2 — Multi-domain relevance gate (2026-06)
+
+The relevance gate is shown **not** to be a single-domain artefact.
+
+### Added
+- `docs/GATE_MULTIDOMAIN.md`: the gate trained across **five fact families with distinct structures** (sensor hex / config integer / service semver / node coordinate / protocol hex-byte), plus a **held-out-phrasing test**.
+- **Held-out-phrasing generalisation.** The gate is trained on a subset of question phrasings and evaluated on an *unseen* phrasing of the same entities: gated recall **100 % = ungated 100 % (0-point drop)**, gate open-rate **0.94 (trained) vs 0.95 (held-out)**. The gate keys on stored-entity-ness, not the surface template.
+- **Multi-domain general-knowledge preservation.** With the multi-domain gate: TriviaQA (n=1000, 3 gate seeds) **52.8 % ± 0.28** vs 53.4 % backbone (−0.6 pt, ~95 % of the ungated loss recovered); PPL WikiText-103 **+1.0 %**; stored-fact recall 100 % across all five structures.
+
+### Notes
+- Fact families used for this study are synthetic. Gate implementation code remains planned for a later release.
+
 ## v0.2.1 — Sprint 0 hardening (2026-06)
 
 Metrics moved from "indicative" to defensible scale; pool ceiling lifted.
