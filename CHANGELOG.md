@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.3.1 — Generalisation frontier of the relevance gate (2026-06)
+
+Reinforced generalisation battery (held-out entities, leave-one-family-out, negative control + retrieval geometry). See `docs/GENERALIZATION.md`.
+
+### Added — `docs/GENERALIZATION.md`
+- **Held-out entities: the gate generalises (Δ 0).** Gate trained on 80 % of entities of every family, evaluated on the held-out 20 %: recall gated = ungated for all six families, **including the natural-language one**. Answers "held-out only covers phrasings".
+- **Distribution-level, not entity-level (leave-one-family-out).** The five structured families form one cluster and transfer to each other (Δ ≤ 5 when held out); the NL family held out collapses (Δ −93). Proven to be a **coverage** limit (per-family held-out entities are fine once the family is seen), not fundamental — framed as a boundary characterisation (≥1 example per distributional cluster).
+- **Emergent entity-level safety (negative control + geometry).** The gate opens on fake same-structure entities (open-rate 0.93 ≈ real) but recall on fakes is 0 %. Instrumentation shows product-key addressing is always confident (top-1 ≈ 1, entropy ≈ 0) and early memory-norm does not separate stored/fake; safety comes from **decode-confidence collapse** (1.00 → 0.66) caused by incoherent retrieval, surfacing at layer 22 (norm 92 → 70). Entity filtering emerges from the memory's retrieval geometry, not from the gate.
+- Gate closes on general prose (open-rate 0.0005), the perplexity benefit.
+
+### Framing
+- The contribution is **domain-relevance gating**: the gate detects the distributional signature of a stored-fact context; entity-level filtering is delegated, emergently, to the memory. The NL-family frontier is reported, not hidden.
+
 ## v0.3.0 — Relevance-gate code released (2026-06)
 
 First of the R-Arxiv hardening series (preprint preparation). The relevance-gate implementation is now public.
