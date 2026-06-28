@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.2 — External baselines: RAG, LoRA, kNN-LM (2026-06)
+
+Compare the frozen-backbone Memory-Layers-+-gate approach to standard fact-injection methods on the same synthetic facts and metrics. See `docs/BASELINES.md`.
+
+### Added — `docs/BASELINES.md`
+- **RAG** (BM25 sparse, top-1 injected): recall **99.4 %**, **non-destructive** (general PPL / TriviaQA = backbone), but a retrieval index + injected context on every query; knowledge stays out of the weights.
+- **LoRA** (r=16, all-linear, answer-only): recall 82.7 % (1000 facts) but **catastrophic forgetting** — TriviaQA 53.4 % → **0.7 %**, WikiText PPL **+45 %**.
+- **kNN-LM** (datastore of hidden→next-token, interpolation λ): **fails the Q&A recall (0 %)** because declarative datastore keys don't match the question's hidden state, while the fact-only datastore taxes the general distribution (PPL +15 %→+70 %, TriviaQA 42 %→8 % as λ grows).
+- **Takeaway:** only Memory-Layers-+-gate reaches ~100 % recall **and** preserves general competence (PPL +2.3 %, TriviaQA −0.6) **and** stays parametric (no retrieval, no per-query context).
+
+### Notes
+- Memorizing Transformers (Wu et al. 2022) is covered in Related Work rather than reimplemented.
+- All data synthetic; backbone Qwen2.5-7B frozen.
+
 ## v0.3.1 — Generalisation frontier of the relevance gate (2026-06)
 
 Reinforced generalisation battery (held-out entities, leave-one-family-out, negative control + retrieval geometry). See `docs/GENERALIZATION.md`.
