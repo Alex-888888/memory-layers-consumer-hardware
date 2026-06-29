@@ -10,6 +10,11 @@ Compare the frozen-backbone Memory-Layers-+-gate approach to standard fact-injec
 - **kNN-LM** (datastore of hidden→next-token, interpolation λ): **fails the Q&A recall (0 %)** because declarative datastore keys don't match the question's hidden state, while the fact-only datastore taxes the general distribution (PPL +15 %→+70 %, TriviaQA 42 %→8 % as λ grows).
 - **Takeaway:** only Memory-Layers-+-gate reaches ~100 % recall **and** preserves general competence (PPL +2.3 %, TriviaQA −0.6) **and** stays parametric (no retrieval, no per-query context).
 
+### Added — `docs/STATS.md` (statistical calibration)
+- **Binomial CIs.** At n=1000 the 95 % TriviaQA half-width is ±3.1 pts. The **ungated** regression (−8.2) is significant (CI-disjoint from backbone); the **gated** residual (−0.6 / −0.9) is **within sampling noise** → restated as "no statistically significant regression" rather than "recovers 89 %".
+- **σ clarified.** The reported ±1.74 / ±0.28 are inter-seed gate-training reproducibility, **not** the sampling standard error (≈±1.58 at n=1000); both reported.
+- PPL (220k tokens) is a population quantity; recall is at the ceiling (Wilson [99.6 %, 100 %] at n=1000).
+
 ### Notes
 - Memorizing Transformers (Wu et al. 2022) is covered in Related Work rather than reimplemented.
 - All data synthetic; backbone Qwen2.5-7B frozen.
