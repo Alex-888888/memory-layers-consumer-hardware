@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.3.4 — Honest correction on the safety claim + kNN-LM Q&A baseline (2026-06)
+
+A self-correction release. Two follow-up experiments (re-using the frozen 6-family memory, all data synthetic) sharpen and in one case **retract** earlier claims.
+
+### Changed — `docs/GENERALIZATION.md` §3 corrected; new `docs/SAFETY_EVAL.md`
+- **The v0.3.1 "emergent entity-level safety" / "decode-confidence collapse 1.00 → 0.66" claim is corrected.** It rested on **40** fake entities. Re-measured **in-process** at **n = 360** (with a stored-recall = 1.000 sanity gate; an earlier checkpoint-reload gave recall ≈ 0 for stored facts too and was discarded as a measurement artifact):
+  - decode confidence: stored **1.00**, fake **0.91** (left tail to 0.15); **AUC stored-vs-fake = 0.69** — a *partial*, not categorical, signal (~half of fakes show reduced confidence).
+  - On a non-stored entity the model **confidently fabricates a plausible, format-correct, wrong value** (e.g. fake config_param → `614`, fake proto → `0x76`) — it does **not** abstain.
+  - The accurate property is **no inter-fact leakage** (`fake_eq ≈ 0`: it never reproduces the unseen value or pulls a stored fact), **not** "no hallucination".
+- **Framing updated:** the gate is domain-level; the memory does **not** filter unknown entities; only "no inter-fact leakage" holds. `docs/THREATS.md` updated accordingly (replaces the "no hallucination is empirical" bullet).
+- **NL-family scope caveat (v0.3.1 §2):** with a single NL family we cannot distinguish *per-cluster* from *per-family* coverage; the supported claim is the narrower "held-out NL **entities** recover once the NL family is seen". A second NL family would settle it.
+
+### Changed — `docs/BASELINES.md` / `docs/RELATED_WORK.md` (kNN-LM)
+- The v0.3.2 kNN-LM **0 %** used a *declarative* datastore. v0.3.4 re-ran kNN-LM with a **Q&A-format datastore** (key = hidden state over the answer span of a `question → answer` sequence): recall **0 % up to λ=0.5, 2 % at λ=0.7, 13 % at λ=0.9** (n=100). The format fix lifts the artifactual 0 %, but kNN-LM only recalls anything when the kNN term nearly overrides the LM (λ=0.9) — the regime that wrecks the general distribution — and tops out at 13 % vs ~100 %. Documented as **structurally inadequate** here, not a strawman.
+
+### Notes
+- Net effect: the safety story is **weaker but true** (domain-level gate, no inter-fact leakage, partial confidence signal), and the kNN-LM baseline is now a measured curve rather than a single artifactual 0 %. Reproduce: `python a2_inproc.py` (Angle 2), `python c2_knnlm_qa.py` (Angle 4). All data synthetic; backbone Qwen2.5-7B frozen.
+
 ## v0.3.3 — Related work + threats to validity (2026-06)
 
 Positions the contribution in the literature and lists, without minimising, the limits. Closes the R-Arxiv preprint-preparation series (C1–C5).
@@ -23,7 +41,7 @@ Compare the frozen-backbone Memory-Layers-+-gate approach to standard fact-injec
 ### Added — `docs/BASELINES.md`
 - **RAG** (BM25 sparse, top-1 injected): recall **99.4 %**, **non-destructive** (general PPL / TriviaQA = backbone), but a retrieval index + injected context on every query; knowledge stays out of the weights.
 - **LoRA** (r=16, all-linear, answer-only): recall 82.7 % (1000 facts) but **catastrophic forgetting** — TriviaQA 53.4 % → **0.7 %**, WikiText PPL **+45 %**.
-- **kNN-LM** (datastore of hidden→next-token, interpolation λ): **fails the Q&A recall (0 %)** because declarative datastore keys don't match the question's hidden state, while the fact-only datastore taxes the general distribution (PPL +15 %→+70 %, TriviaQA 42 %→8 % as λ grows).
+- **kNN-LM** (datastore of hidden→next-token, interpolation λ): **fails the Q&A recall (0 %)** because declarative datastore keys don't match the question's hidden state, while the fact-only datastore taxes the general distribution (PPL +15 %→+70 %, TriviaQA 42 %→8 % as λ grows). *(v0.3.4: a Q&A-format datastore lifts this to ≤13 % at λ=0.9 — still structurally inadequate.)*
 - **Takeaway:** only Memory-Layers-+-gate reaches ~100 % recall **and** preserves general competence (PPL +2.3 %, TriviaQA −0.6) **and** stays parametric (no retrieval, no per-query context).
 
 ### Added — `docs/STATS.md` (statistical calibration)
@@ -37,16 +55,16 @@ Compare the frozen-backbone Memory-Layers-+-gate approach to standard fact-injec
 
 ## v0.3.1 — Generalisation frontier of the relevance gate (2026-06)
 
-Reinforced generalisation battery (held-out entities, leave-one-family-out, negative control + retrieval geometry). See `docs/GENERALIZATION.md`.
+Reinforced generalisation battery (held-out entities, leave-one-family-out, negative control + retrieval geometry). See `docs/GENERALIZATION.md`. *(§3 "emergent entity-level safety" corrected in v0.3.4 — see `docs/SAFETY_EVAL.md`.)*
 
 ### Added — `docs/GENERALIZATION.md`
 - **Held-out entities: the gate generalises (Δ 0).** Gate trained on 80 % of entities of every family, evaluated on the held-out 20 %: recall gated = ungated for all six families, **including the natural-language one**. Answers "held-out only covers phrasings".
-- **Distribution-level, not entity-level (leave-one-family-out).** The five structured families form one cluster and transfer to each other (Δ ≤ 5 when held out); the NL family held out collapses (Δ −93). Proven to be a **coverage** limit (per-family held-out entities are fine once the family is seen), not fundamental — framed as a boundary characterisation (≥1 example per distributional cluster).
-- **Emergent entity-level safety (negative control + geometry).** The gate opens on fake same-structure entities (open-rate 0.93 ≈ real) but recall on fakes is 0 %. Instrumentation shows product-key addressing is always confident (top-1 ≈ 1, entropy ≈ 0) and early memory-norm does not separate stored/fake; safety comes from **decode-confidence collapse** (1.00 → 0.66) caused by incoherent retrieval, surfacing at layer 22 (norm 92 → 70). Entity filtering emerges from the memory's retrieval geometry, not from the gate.
+- **Distribution-level, not entity-level (leave-one-family-out).** The five structured families form one cluster and transfer to each other (Δ ≤ 5 when held out); the NL family held out collapses (Δ −93). A **coverage** limit (per-family held-out entities are fine once the family is seen), not fundamental. *(v0.3.4 caveat: a single NL family cannot settle per-cluster vs per-family.)*
+- **Entity behaviour on non-stored entities.** *(Corrected in v0.3.4: the original "emergent safety via decode-confidence collapse 1.00 → 0.66 / no hallucination" was an n=40 artifact; at n=360 the signal is partial (AUC 0.69) and the model confidently fabricates plausible wrong values — only "no inter-fact leakage" holds. See `docs/SAFETY_EVAL.md`.)*
 - Gate closes on general prose (open-rate 0.0005), the perplexity benefit.
 
 ### Framing
-- The contribution is **domain-relevance gating**: the gate detects the distributional signature of a stored-fact context; entity-level filtering is delegated, emergently, to the memory. The NL-family frontier is reported, not hidden.
+- The contribution is **domain-relevance gating**: the gate detects the distributional signature of a stored-fact context. The NL-family frontier is reported, not hidden.
 
 ## v0.3.0 — Relevance-gate code released (2026-06)
 
