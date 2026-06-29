@@ -1,4 +1,4 @@
-# Related work (v0.3.3)
+# Related work (v0.3.3, kNN-LM line updated in v0.3.4)
 
 How this reconstruction sits relative to the literature on giving language models new facts. We
 group prior work by *where the knowledge lives* and *what is modified*, then state our position.
@@ -40,8 +40,11 @@ group prior work by *where the knowledge lives* and *what is modified*, then sta
   context cost per query. Our RAG baseline.
 - **Khandelwal et al. 2020, *Generalization through Memorization: Nearest Neighbor LMs*** (kNN-LM,
   arXiv:1911.00172). Interpolate the LM's next-token distribution with a kNN distribution over a
-  datastore of hidden states. Our kNN-LM baseline; we find a naive fact datastore fails the Q&A
-  recall task (declarative→question mismatch) while taxing the general distribution.
+  datastore of hidden states. Our kNN-LM baseline; a declarative datastore fails the Q&A recall task
+  (declarative→question mismatch), and a format-matched **Q&A datastore (v0.3.4)** still tops out at
+  **≤ 13 % recall, only at λ=0.9** (the regime that wrecks the general distribution) — structurally
+  inadequate for exact-string fact recall here, not merely a datastore-format artifact
+  (`docs/BASELINES.md`).
 - **Wu et al. 2022, *Memorizing Transformers*** (arXiv:2203.08913). kNN-augmented attention over an
   external memory of (key, value) pairs. Conceptually adjacent to kNN-LM at the attention level; we
   discuss it here rather than reimplement it (a faithful integration into this stack is out of
