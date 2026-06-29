@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.3.3 — Related work + threats to validity (2026-06)
+
+Positions the contribution in the literature and lists, without minimising, the limits. Closes the R-Arxiv preprint-preparation series (C1–C5).
+
+### Added — `docs/RELATED_WORK.md`
+- **Memory layers** — Lample et al. 2019 (product keys); Berges et al. 2024 (the substrate this repo reconstructs).
+- **Closest concurrent work — Sparse Memory Finetuning** (Lin et al. 2025, arXiv:2510.15103, Meta FAIR): *sparsely updates* memory slots (NaturalQuestions F1 drop 89 % full-FT / 71 % LoRA / **11 % sparse-memory-FT**). We instead keep backbone **and** memory frozen and add an inference-time gate — complementary; their LoRA-forgetting numbers corroborate our LoRA baseline.
+- **Active Reading** (Lin et al. 2025, arXiv:2508.09494); retrieval methods (RAG, kNN-LM, Memorizing Transformers); PEFT (LoRA; Biderman et al. 2024 "LoRA learns less and forgets less" — regime-dependent).
+- **Our position:** retrofit setting (frozen backbone + frozen memory + a learned domain-relevance gate) — neither weight-edit nor retrieval.
+
+### Added — `docs/THREATS.md`
+- Synthetic facts with marked signatures; a single simple NL family; closed fact set. One backbone / one checkpoint per scale; hardware-specific ceilings (ROCm/WSL2, 24 GB). Baselines at differing scales and **not exhaustively tuned** (kNN-LM's 0 % is a declarative→Q&A datastore-format artefact, not an upper bound). "No hallucination" is empirical to this memory's retrieval geometry; the gate is domain-level. What would most strengthen the work: a head-to-head with Sparse Memory Finetuning, real facts, more backbones, larger-n benchmarks.
+
+### Notes
+- Closes the R-Arxiv series (C1 gate code → C3 generalisation → C2 baselines → C4 stats → C5 related work + threats). All data synthetic; backbone Qwen2.5-7B frozen.
+
 ## v0.3.2 — External baselines: RAG, LoRA, kNN-LM (2026-06)
 
 Compare the frozen-backbone Memory-Layers-+-gate approach to standard fact-injection methods on the same synthetic facts and metrics. See `docs/BASELINES.md`.
