@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.4.1 — Sprint R-Safety completed: open-set recognition is empirically intractable internally (2026-07)
+
+**Structural finding: internal entity-level open-set recognition on a frozen parametric product-key memory is empirically intractable; external RAG-style verification is identified as the only reliable abstention mechanism.** New characterisation doc `docs/OPENSET_MP_TYLER.md`. No code added — this release is a characterisation deliverable. All in-process; every phase gated on stored-recall = 1.000; all data synthetic.
+
+### Added — `docs/OPENSET_MP_TYLER.md`
+- **Phase 1 — routing geometry (AUC ≈ 0.50).** Eight product-key routing features (`s_max`, margins, variance, per-sub-quantiser tops, top-k entropy, memory-output norm) × 3 layers, stored vs fake at n=360: all **0.50–0.53**. Cause: qk-normalisation makes the routing scores pure cosines, so a fake same-structure entity retrieves its nearest keys with the same distribution — the "is-stored" bit is absent from the addressing geometry.
+- **Phase 1-bis A — value-space geometry (AUC ≈ 0.50).** A normalisation-invariant **Tyler M-estimator** (Tyler 1987) of the value-pool scatter, then per-entity Mahalanobis and retrieval coherence. All **0.50–0.52**. The **"incoherent retrieval" hypothesis is refuted**: coherence is **1.00 for fakes as for stored** (identical to 4 decimals) — a fake produces a perfectly coherent but wrong value. Spectral characterisation: Marchenko–Pastur bulk with the corrected **γ = d/N = 3584/50176 = 0.0714** (587 spike eigenvalues, no clean low-energy null-space) — a generic-watermarking feasibility check, not pursued.
+- **Phase 1-bis A2+ — semantic entropy (AUC 0.66).** Farquhar et al. (Nature 2024): k=8 temperature-sampled generations clustered by meaning. Stored entropy 0.00 / fake 0.27 → AUC **0.6625**, *below* the cheap proxies (3-phrasing 0.69, decode-confidence 0.67). **63 % of unknown entities yield a single value across 8 samples** — the model fabricates one confident, self-consistent value, so there is little epistemic uncertainty to detect (hidden-state variants such as EigenScore/INSIDE, semantic-entropy probes and SelfCheckGPT read the same signal and are not expected to recover one that is absent from both geometry and behaviour).
+- **Conclusion + recommendation.** Entity-level OSR is empirically intractable by internal or behavioural measurement on this architecture (the "is-stored" information is not present, geometrically or behaviourally). Reliable abstention requires an **external** membership/retrieval check; the natural design is a hybrid (parametric memory for recall + a cheap external lookup for abstention), consistent with the parametric-vs-retrieval trade-off already documented in `docs/BASELINES.md`.
+
+### Notes
+- References are public-literature only: Berges 2024 (arXiv:2412.09764), Lample 2019 (arXiv:1907.05242), Marchenko–Pastur 1967, Baik–Ben Arous–Péché 2005, Tyler 1987, Cox et al. 1997, Farquhar et al. 2024 (Nature), Chen et al. 2024 (INSIDE/EigenScore, ICLR, arXiv:2402.03744), Kossen et al. 2024 (arXiv:2406.15927), Manakul et al. 2023 (SelfCheckGPT, EMNLP, arXiv:2303.08896).
+- Reproduce: `python r_safety_probe.py` (routing), `python r_safety_1bisA.py` (Tyler + MP spectrum), `python r_safety_a2plus.py` (semantic entropy). All in-process; synthetic; backbone Qwen2.5-7B frozen.
+
 ## v0.3.4 — Honest correction on the safety claim + kNN-LM Q&A baseline (2026-06)
 
 A self-correction release. Two follow-up experiments (re-using the frozen 6-family memory, all data synthetic) sharpen and in one case **retract** earlier claims.
@@ -60,7 +74,7 @@ Reinforced generalisation battery (held-out entities, leave-one-family-out, nega
 ### Added — `docs/GENERALIZATION.md`
 - **Held-out entities: the gate generalises (Δ 0).** Gate trained on 80 % of entities of every family, evaluated on the held-out 20 %: recall gated = ungated for all six families, **including the natural-language one**. Answers "held-out only covers phrasings".
 - **Distribution-level, not entity-level (leave-one-family-out).** The five structured families form one cluster and transfer to each other (Δ ≤ 5 when held out); the NL family held out collapses (Δ −93). A **coverage** limit (per-family held-out entities are fine once the family is seen), not fundamental. *(v0.3.4 caveat: a single NL family cannot settle per-cluster vs per-family.)*
-- **Entity behaviour on non-stored entities.** *(Corrected in v0.3.4: the original "emergent safety via decode-confidence collapse 1.00 → 0.66 / no hallucination" was an n=40 artifact; at n=360 the signal is partial (AUC 0.69) and the model confidently fabricates plausible wrong values — only "no inter-fact leakage" holds. See `docs/SAFETY_EVAL.md`.)*
+- **Entity behaviour on non-stored entities.** *(Corrected in v0.3.4: the original "emergent safety via decode-confidence collapse 1.00 → 0.66 / no hallucination" was an n=40 artifact; at n=360 the signal is partial (AUC 0.69) and the model confidently fabricates plausible wrong values — only "no inter-fact leakage" holds. See `docs/SAFETY_EVAL.md`. v0.4.1: no internal detector recovers entity-level OSR either — see `docs/OPENSET_MP_TYLER.md`.)*
 - Gate closes on general prose (open-rate 0.0005), the perplexity benefit.
 
 ### Framing
@@ -118,7 +132,7 @@ Metrics moved from "indicative" to defensible scale; pool ceiling lifted.
 - **Relevance gate fix.** A small learned per-token gate (~0.5M params/layer, backbone *and* memory frozen, only the gate trains) recovers it: PPL −0.5 % vs backbone, synthetic recall 100 %, TriviaQA 40.0 % → 47.3 % (vs 50.0 % backbone, n=300) — ~73 % of the loss recovered.
 - **Multi-seed reproducibility.** Recipe validated on seeds {137, 7, 23}: 100 % synthetic recall on 3/3, standard deviation 0. The v0.1 "single run, no multi-seed" caveat is lifted at micro-scale.
 - **Pool ceiling 50k → ~200k.** The offloaded optimizer *does* train the pool (the original 0 % was loss + packing, not the optimizer). Dense is VRAM-capped ~50–100k; offload reaches 200k at 100 % recall. 500k pending a ROCm HSA allocator fix.
-- **Phase E → Phase F.** Signal/ghost fusion was found unrealizable in its initial formulation; reframed as Phase F (open to Vector Symbolic Architectures or similar), off the critical path.
+- **Phase E → Phase F.** Multi-signal fusion for retrieval augmentation was found unrealizable in its initial formulation; reframed as Phase F (open to Vector Symbolic Architectures or similar), off the critical path.
 
 ### Notes
 - Gate implementation code is planned for a later release (v0.3).
