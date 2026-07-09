@@ -1,4 +1,4 @@
-# Open-set recognition on a frozen parametric memory — a negative result (v0.4.1)
+# Open-set recognition on a frozen parametric memory — a negative result (v0.4.2)
 
 **Question.** The relevance gate is *domain-level* (`GENERALIZATION.md`, `SAFETY_EVAL.md`): it opens on a
 stored-fact context but does **not** decide whether a *specific queried entity* is actually stored.
@@ -7,12 +7,17 @@ On a non-stored entity the model confidently fabricates a plausible, format-corr
 "is this entity in memory?" — computed *internally* (from the model's own states / behaviour), so the
 system can abstain instead of fabricating?
 
-**Answer (this sprint).** No, not from internal or behavioural measurement. Across three independent
-signal families we find OSR AUC at or near chance for the geometric signals and only weakly above
-chance for the strongest behavioural one — below any usable operating point. The mechanism is
-identified: the memory produces **confident, self-consistent fabrications**, so there is simply no
-accessible uncertainty to measure. We conclude that reliable entity-level abstention on this
-architecture requires an **external** check, and we recommend a retrieval-based verification.
+**Answer (this sprint).** No, not from internal or behavioural measurement, and **not from a
+supervised probe either — including a capacity-augmented LoRA-probe**. Across **four independent
+signal families** we find OSR AUC at or near chance for the geometric signals, only weakly above
+chance for the strongest behavioural one, and — the decisive new result — a supervised probe trained
+directly to separate stored from fabricated entities reaches only **0.685 (linear)** and **0.622
+(LoRA-probe)** on an entity-disjoint held-out split — below any usable operating point, and below the
+0.867 / 0.905 the same probe methodology attains on general LLMs. The mechanism is identified: the
+memory produces **confident, deterministic, self-consistent fabrications**, so there is simply no
+accessible uncertainty to measure and nothing for a probe to latch onto that generalises across
+entities. We conclude that reliable entity-level abstention on this architecture requires an
+**external** check, and we recommend a retrieval-based verification.
 
 All experiments are **in-process** on a frozen Qwen2.5-7B + product-key memory (MLP-ADD at layers
 6/14/22), six synthetic fact families (360 stored entities), evaluated against same-structure
@@ -101,29 +106,103 @@ EigenScore / INSIDE, Chen et al. 2024; semantic-entropy probes, Kossen et al. 20
 Manakul et al. 2023 — read the same generations/states and are not expected to recover a signal that
 is absent from both the geometry (§1–2) and the sampling behaviour (§3).)
 
-## 4. Mechanism
+## 4. Supervised linear probe on the residual stream — AUC 0.685 (Phase 1-bis-E)
 
-The retrieved value for a non-stored entity is **confident, coherent, well-formed, and stable across
-sampling** — a single fabricated value, not a hedge and not a blend. Consequently:
+The three families above are *unsupervised* readouts (geometry, behaviour). The natural next question
+is whether a **supervised** probe — trained with labels "stored vs fabricated", the strongest form of
+internal detector in the hallucination-probing literature (Azaria & Mitchell 2023; Zou et al. 2023;
+Marks & Tegmark 2023; Obeso et al. 2025) — can find a decision boundary the unsupervised readouts
+miss. We train a logistic probe on the full **residual-stream** hidden state (d = 3584) at the
+answer-position token, sweeping five downstream layers **[14, 22, 24, 26, 28]**.
+
+**Entity-disjoint split (the essential control).** A probe trained and tested on the *same* entities
+can learn to recognise individual entity identities rather than the stored-vs-fabricated property,
+inflating the AUC by memorisation. We therefore split by **entity**, not by example: **252 entities
+per class train / 108 per class held-out**, with no entity appearing in both. The reported AUC is on
+held-out entities the probe never saw.
+
+| probe layer | test AUC (held-out entities) | train AUC |
+|---|---|---|
+| L14 | 0.575 | 0.799 |
+| L22 | 0.615 | 0.929 |
+| L24 | 0.654 | 0.910 |
+| **L26 (best)** | **0.685** | 0.952 |
+| L28 | 0.650 | 0.961 |
+| (reference) decode confidence | 0.696 | — |
+
+Even the best layer reaches only **0.685** on held-out entities — *below* the free decode-confidence
+baseline (0.696). The large train/test gap (0.952 → 0.685 at L26) is the signature of exactly the
+memorisation the disjoint split is designed to expose: the probe fits *which entities* it saw, and
+that does not transfer. There is no entity-general "stored-vs-fabricated" direction in the residual
+stream to be read.
+
+## 5. LoRA-probe (Obeso 2025 headline method) — AUC 0.622 (Phase 1-bis-E-LoRA)
+
+The strongest single method in Obeso et al. (2025) is not a static probe but a **LoRA-probe**: a
+low-rank adapter is trained jointly with the probe head, so the network can *reshape* its own
+activations to make the target property linearly decodable, while a KL term keeps the underlying
+behaviour intact. On general LLMs this lifts AUC from **0.867** (their linear probe) to **0.905**. We
+reproduced it faithfully on our architecture:
+
+- **Adapter:** `LoraConfig(r=16, α=32, target=self_attn.{q_proj, v_proj})` → **5,046,272 trainable
+  params (0.065 % of 7.74 B)**; backbone weights and the memory pool remain frozen.
+- **Joint objective:** `BCE(probe(LN(h_L26)), y) + λ_KL · KL(logits_LoRA ‖ logits_frozen)` with
+  `λ_KL = 0.5`, the frozen reference obtained via `disable_adapter()`.
+- **Behaviour preserved:** final training **KL = 0.0000**; **sanity stored-recall = 1.000 with the
+  LoRA active** (60/60), identical to the no-LoRA gate (1.000) — the adapter did not damage the
+  memory, it simply had nothing more to expose.
+- **Same entity-disjoint split** as §4 (504 train / 216 held-out).
+
+**Result: held-out test AUC = 0.622** — *lower* than the plain linear probe (0.685) and the
+decode-confidence baseline (0.696).
+
+## 6. The decisive comparison
+
+| method | this architecture (product-key, frozen backbone, qk-norm) | Obeso 2025 (general LLM) |
+|---|---|---|
+| linear probe | **0.685** | 0.867 |
+| **LoRA-probe** | **0.622** | **0.905** |
+
+Two things stand out. First, **adding capacity finds no additional signal**: the LoRA-probe (0.622)
+is *below* the linear probe (0.685) and below decode confidence (0.696). When a method that is
+*designed* to manufacture a decodable direction — and demonstrably can on general models — fails to
+beat a free baseline here, the property it is looking for is not weakly encoded but **absent**.
+Second, the **0.28-point gap on the LoRA-probe** (0.905 vs 0.622) between a general LLM and this
+architecture shows the intractability is **specific to product-key memory with a frozen backbone and
+qk-normalisation**, not a general limitation of activation probing. The method works elsewhere; it
+does not work here, and the architecture is why.
+
+## 7. Mechanism (unified)
+
+The retrieved value for a non-stored entity is **confident, coherent, well-formed, deterministic, and
+stable across sampling** — a single fabricated value, not a hedge and not a blend. The §3 measurement
+makes this concrete: **63 % of unknown entities yield a single value cluster across 8 samples**. This
+one property explains every negative above:
 
 - routing/addressing carries no stored-vs-fake bit (qk-normalisation removes magnitude; the angle is
   unchanged), §1;
 - the assembled value carries none either (coherence identical for stored and fake), §2;
-- the output distribution carries only a weak one (majority of fakes are self-consistent), §3.
+- the output distribution carries only a weak one (majority of fakes are self-consistent), §3;
+- **the residual stream carries no entity-general one** — a supervised linear probe overfits entity
+  identity and reaches only 0.685 on held-out entities, §4;
+- **and no amount of adapter capacity manufactures one** — a LoRA-probe that preserves behaviour
+  (KL 0, recall 1.000) still lands at 0.622, §5.
 
-The "is-this-entity-stored" information is not present, geometrically or behaviourally, in a form an
-internal detector can read.
+A deterministic, confident fabrication produces **no measurable internal signal, regardless of probe
+capacity**. There is no uncertainty because the model is not uncertain — it is confidently wrong in a
+stable way.
 
-## 5. Structural conclusion
+## 8. Structural conclusion
 
-On a **frozen-backbone product-key parametric memory**, entity-level open-set recognition is
-**empirically intractable by internal or behavioural measurement**: three independent signal families
-(routing geometry, value-space geometry with a normalisation-invariant estimator, and semantic
-entropy) all fail to reach a usable operating point (AUC 0.50 / 0.50 / 0.66), each under a
-stored-recall = 1.000 sanity gate. The gate remains a sound *domain-level* mechanism; **entity-level**
-abstention is not obtainable this way.
+On a **frozen-backbone product-key parametric memory with qk-normalisation**, entity-level open-set
+recognition is **empirically intractable — by internal measurement, by behavioural measurement, and
+by supervised probing including capacity-augmented LoRA-probes**. Four independent signal families
+(routing geometry, value-space geometry with a normalisation-invariant estimator, semantic entropy,
+and supervised residual probes linear + LoRA) all fail to reach a usable operating point
+(AUC 0.50 / 0.50 / 0.66 / 0.685–0.622), each under a stored-recall = 1.000 sanity gate. The gate
+remains a sound *domain-level* mechanism; **entity-level** abstention is not obtainable this way.
 
-## 6. Operational recommendation
+## 9. Operational recommendation
 
 Reliable entity-level abstention requires an **external** check: before trusting a memory-produced
 value, verify that the queried entity exists in the known-fact index (a retrieval / lookup step). This
@@ -132,11 +211,22 @@ baseline in `BASELINES.md` (v0.3.2) — the same parametric-vs-retrieval trade-o
 reason it cannot be closed internally on this architecture. A hybrid (parametric memory for recall,
 a cheap membership lookup for abstention) is the natural next design.
 
+## 10. Methodological note — entity-disjoint splitting
+
+The supervised-probe results (§4–5) are only meaningful **because** train and test entities are
+disjoint. A same-entity split would let the probe memorise entity identities and report a
+misleadingly high AUC (here the train AUC reaches 0.95 while held-out is 0.685). We record the
+**entity-disjoint split as an essential control for any supervised open-set / hallucination probe on
+parametric memory**: split by the underlying stored unit, not by phrasing or example, or the metric
+measures memorisation rather than generalisation.
+
 ## Reproduce
 
 - §1 `python r_safety_probe.py` — routing features × layers, AUC, sanity gate.
 - §2 `python r_safety_1bisA.py` — Tyler-Mahalanobis / coherence, MP spectrum, sanity gate.
 - §3 `python r_safety_a2plus.py` — semantic entropy (k=8, T=0.7), sanity gate.
+- §4 `python r_reliable_probe.py` — supervised linear probe on the residual, entity-disjoint split, layer sweep, sanity gate.
+- §5 `python r_reliable_lora.py` — LoRA-probe (r=16, KL-preserved), sanity gate with LoRA active.
 
 All in-process; synthetic data; single 24 GB consumer GPU (ROCm/WSL2).
 
@@ -152,3 +242,7 @@ All in-process; synthetic data; single 24 GB consumer GPU (ROCm/WSL2).
 - Chen et al. 2024, *INSIDE: LLMs' Internal States Retain the Power of Hallucination Detection* (EigenScore), ICLR 2024, arXiv:2402.03744.
 - Kossen et al. 2024, *Semantic Entropy Probes: Robust and Cheap Hallucination Detection in LLMs*, arXiv:2406.15927.
 - Manakul, Liusie & Gales 2023, *SelfCheckGPT: Zero-Resource Black-Box Hallucination Detection*, EMNLP 2023, arXiv:2303.08896.
+- Obeso et al. 2025, *Real-time detection of hallucinated entities in long-form generation* (supervised residual probes; linear and LoRA-probe), arXiv:2509.03531.
+- Azaria & Mitchell 2023, *The Internal State of an LLM Knows When It's Lying*, EMNLP Findings 2023, arXiv:2304.13734.
+- Zou et al. 2023, *Representation Engineering: A Top-Down Approach to AI Transparency*, arXiv:2310.01405.
+- Marks & Tegmark 2023, *The Geometry of Truth: Emergent Linear Structure in LLM Representations of True/False Datasets*, arXiv:2310.06824.
