@@ -1,4 +1,4 @@
-# Open-set recognition on a frozen parametric memory — a negative result (v0.4.2)
+# Open-set recognition on a frozen parametric memory — a negative result (v0.4.3)
 
 **Question.** The relevance gate is *domain-level* (`GENERALIZATION.md`, `SAFETY_EVAL.md`): it opens on a
 stored-fact context but does **not** decide whether a *specific queried entity* is actually stored.
@@ -7,17 +7,20 @@ On a non-stored entity the model confidently fabricates a plausible, format-corr
 "is this entity in memory?" — computed *internally* (from the model's own states / behaviour), so the
 system can abstain instead of fabricating?
 
-**Answer (this sprint).** No, not from internal or behavioural measurement, and **not from a
-supervised probe either — including a capacity-augmented LoRA-probe**. Across **four independent
-signal families** we find OSR AUC at or near chance for the geometric signals, only weakly above
-chance for the strongest behavioural one, and — the decisive new result — a supervised probe trained
-directly to separate stored from fabricated entities reaches only **0.685 (linear)** and **0.622
-(LoRA-probe)** on an entity-disjoint held-out split — below any usable operating point, and below the
-0.867 / 0.905 the same probe methodology attains on general LLMs. The mechanism is identified: the
-memory produces **confident, deterministic, self-consistent fabrications**, so there is simply no
-accessible uncertainty to measure and nothing for a probe to latch onto that generalises across
-entities. We conclude that reliable entity-level abstention on this architecture requires an
-**external** check, and we recommend a retrieval-based verification.
+**Answer (this sprint).** No, not from internal or behavioural measurement, not from a
+supervised probe (including a capacity-augmented LoRA-probe), and — added in v0.4.3 — not from an
+**upstream pre-normalization density/energy filter** either. Across **five independent signal
+families** we find OSR AUC at or near chance for the geometric signals, only weakly above chance for
+the strongest behavioural one, only 0.685 (linear) / 0.622 (LoRA-probe) for a supervised probe trained
+directly to separate stored from fabricated entities on an entity-disjoint split, and — the v0.4.3
+result — **0.52** for a density filter measuring the query *before* qk-normalization, in the raw
+Euclidean space where magnitude still exists. All below any usable operating point, and the supervised
+probe far below the 0.867 / 0.905 the same methodology attains on general LLMs. The mechanism is
+identified: the memory produces **confident, deterministic, self-consistent fabrications**, so there is
+simply no accessible uncertainty to measure and nothing for a probe to latch onto that generalises
+across entities — and the "is-stored" bit is not merely destroyed by qk-normalization, it is **absent
+from the query geometry upstream of it**. We conclude that reliable entity-level abstention on this
+frozen architecture requires an **external** check, and we recommend a retrieval-based verification.
 
 All experiments are **in-process** on a frozen Qwen2.5-7B + product-key memory (MLP-ADD at layers
 6/14/22), six synthetic fact families (360 stored entities), evaluated against same-structure
@@ -195,12 +198,14 @@ stable way.
 ## 8. Structural conclusion
 
 On a **frozen-backbone product-key parametric memory with qk-normalisation**, entity-level open-set
-recognition is **empirically intractable — by internal measurement, by behavioural measurement, and
-by supervised probing including capacity-augmented LoRA-probes**. Four independent signal families
-(routing geometry, value-space geometry with a normalisation-invariant estimator, semantic entropy,
-and supervised residual probes linear + LoRA) all fail to reach a usable operating point
-(AUC 0.50 / 0.50 / 0.66 / 0.685–0.622), each under a stored-recall = 1.000 sanity gate. The gate
-remains a sound *domain-level* mechanism; **entity-level** abstention is not obtainable this way.
+recognition is **empirically intractable — by internal measurement, by behavioural measurement, by
+supervised probing including capacity-augmented LoRA-probes, and by upstream pre-normalization density
+filtering**. Five independent signal families (routing geometry, value-space geometry with a
+normalisation-invariant estimator, semantic entropy, supervised residual probes linear + LoRA, and a
+pre-qk-norm Euclidean density/energy filter) all fail to reach a usable operating point
+(AUC 0.50 / 0.50 / 0.66 / 0.685–0.622 / 0.52), each under a stored-recall = 1.000 sanity gate. The gate
+remains a sound *domain-level* mechanism; **entity-level** abstention is not obtainable this way, at
+any stage of the memory read.
 
 ## 9. Operational recommendation
 
@@ -220,6 +225,48 @@ misleadingly high AUC (here the train AUC reaches 0.95 while held-out is 0.685).
 parametric memory**: split by the underlying stored unit, not by phrasing or example, or the metric
 measures memorisation rather than generalisation.
 
+## 11. v0.4.3 addendum — upstream pre-normalization density (the fifth family) — AUC 0.52
+
+Families §1–§5 all read the query *after* qk-normalization, or read downstream states. One channel is
+left: qk-normalization (the `F.normalize(q) @ F.normalize(C)` router) discards the **magnitude** of the
+query and of the product-key codebook before the dot product. The direction is known not to separate
+(§1, §3). So the only untested signal is the **raw Euclidean geometry upstream of the normalization** —
+the natural home of a density / energy-based OOD filter (Ren et al. 2019; Nalisnick et al. 2019; LeCun
+et al. EBM). Hypothesis: a stored query sits closer, in raw Euclidean terms, to the codebook key
+manifold than an out-of-support (fake) query.
+
+We capture the pre-normalization query halves `q1, q2` at the answer-position token for 360 stored vs
+360 fake (disjoint seed), at each gated layer (6/14/22), and measure three features against the raw
+codebook rows `C1/C2`:
+
+| feature (best over 3 layers × 2 halves) | AUC stored-vs-fake |
+|---|---|
+| F1 — query magnitude ‖q‖ | 0.506 – 0.514 |
+| **F2 — nearest-codebook-key Euclidean distance (raw)** — the one axis qk-norm discards | **0.507 – 0.514** |
+| F2n — same distance, normalised (control, must ≈ 0.50) | 0.501 – 0.511 ✓ |
+| F3 — reconstruction residual on the codebook PCA span (r = 8…64) | 0.501 – 0.519 |
+| **best over all features / layers** | **0.5185** |
+
+Stored and fake are indistinguishable to the 3rd–4th significant figure (e.g. L6.q1 magnitude
+202.05 vs 201.96; nearest-key distance 200.46 vs 200.37). The normalised control F2n reproduces ~0.50
+as expected, confirming the framing measures the right object. The codebook itself has **no exploitable
+low-dimensional structure**: 0 eigenvalues above the Marchenko–Pastur edge, participation ratio
+≈ 165–194 out of ≈ 224 available directions (near-isotropic) — nothing for a linear autoencoder to
+reconstruct against.
+
+**Interpretation — the finding extends upstream.** The "is-stored" bit is not merely *destroyed* by
+qk-normalization; it **was never in the query geometry**. Two structural reasons: (a) the frozen
+backbone processes a fake entity (an ordinary real token) identically to a stored one; (b) the query
+projection was trained only on stored positives, with no negatives, so it built no rejection geometry.
+A pre-normalization density filter is therefore inoperative on this frozen architecture — it is the
+fifth family to fail, and it closes the "internal detection" line: there is no stage of the memory read
+(addressing, value assembly, output distribution, downstream residual, or upstream query) at which an
+entity-level stored-vs-fabricated signal is measurable. This reinforces §9: reliable abstention
+requires an external check. (Creating — rather than detecting — such a signal would require leaving the
+frozen-backbone setting, e.g. unfreezing the query projection and training against explicit
+out-of-support negatives; that is a different architecture and out of scope for this repository, which
+characterises the frozen retrofit.)
+
 ## Reproduce
 
 - §1 `python r_safety_probe.py` — routing features × layers, AUC, sanity gate.
@@ -227,6 +274,7 @@ measures memorisation rather than generalisation.
 - §3 `python r_safety_a2plus.py` — semantic entropy (k=8, T=0.7), sanity gate.
 - §4 `python r_reliable_probe.py` — supervised linear probe on the residual, entity-disjoint split, layer sweep, sanity gate.
 - §5 `python r_reliable_lora.py` — LoRA-probe (r=16, KL-preserved), sanity gate with LoRA active.
+- §11 `python r_reliable_density.py` — pre-qk-norm Euclidean density (magnitude / nearest-key distance / reconstruction residual), codebook MP spectrum, sanity gate.
 
 All in-process; synthetic data; single 24 GB consumer GPU (ROCm/WSL2).
 
@@ -246,3 +294,6 @@ All in-process; synthetic data; single 24 GB consumer GPU (ROCm/WSL2).
 - Azaria & Mitchell 2023, *The Internal State of an LLM Knows When It's Lying*, EMNLP Findings 2023, arXiv:2304.13734.
 - Zou et al. 2023, *Representation Engineering: A Top-Down Approach to AI Transparency*, arXiv:2310.01405.
 - Marks & Tegmark 2023, *The Geometry of Truth: Emergent Linear Structure in LLM Representations of True/False Datasets*, arXiv:2310.06824.
+- Ren et al. 2019, *Likelihood Ratios for Out-of-Distribution Detection*, NeurIPS 2019, arXiv:1906.02845.
+- Nalisnick et al. 2019, *Do Deep Generative Models Know What They Don't Know?*, ICLR 2019, arXiv:1810.09136.
+- LeCun, Chopra, Hadsell, Ranzato & Huang 2006, *A Tutorial on Energy-Based Learning*, in *Predicting Structured Data* (MIT Press).
