@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.4.3 — R-Reliable extended: an upstream pre-normalization density filter also fails (2026-07)
+
+**Fifth signal family refuted.** A density / energy filter reading the query *before* qk-normalization — in the raw Euclidean space where magnitude still exists — is tested against internal entity-level open-set recognition. It fails like the first four. `docs/OPENSET_MP_TYLER.md` extended with §11 (and abstract/conclusion updated to five families); no code behaviour changed for the earlier phases. All in-process; every phase gated on stored-recall = 1.000; all data synthetic.
+
+### Added — `docs/OPENSET_MP_TYLER.md` §11 (upstream pre-normalization density)
+- **Motivation.** qk-normalization (`F.normalize(q) @ F.normalize(C)`) discards the *magnitude* of the query and codebook before the dot product; the direction is already known not to separate (§1, §3). The one untested channel is the raw Euclidean geometry upstream of the normalization — the natural home of a density / energy-based OOD filter (Ren et al. 2019; Nalisnick et al. 2019; LeCun et al. EBM).
+- **Measurement.** Pre-normalization query halves captured at the answer-position token, 360 stored vs 360 fake (disjoint seed), at gated layers 6/14/22, against the raw codebook rows: (F1) query magnitude ‖q‖ AUC **0.506–0.514**; (F2) **nearest-codebook-key Euclidean distance (raw)** — the one axis qk-norm discards — AUC **0.507–0.514**; (F2n) normalised control ≈ **0.50** ✓; (F3) reconstruction residual on the codebook PCA span AUC **0.501–0.519**. **Best over all features/layers = 0.5185.** Stored and fake are indistinguishable to the 3rd–4th significant figure.
+- **Codebook structure.** 0 eigenvalues above the Marchenko–Pastur edge; participation ratio ≈ 165–194 of ≈ 224 available directions (near-isotropic) — no low-dimensional manifold for a linear autoencoder to reconstruct against.
+- **Interpretation.** The "is-stored" bit is not merely *destroyed* by qk-normalization; it **was never in the query geometry**. The frozen backbone processes a fake entity (an ordinary real token) identically to a stored one, and the query projection — trained only on stored positives — built no rejection geometry. This is the fifth family to fail and it closes the internal-detection line: there is no stage of the memory read (addressing, value assembly, output distribution, downstream residual, upstream query) at which an entity-level signal is measurable.
+
+### Notes
+- References added, public-literature only: Ren et al. 2019 (arXiv:1906.02845), Nalisnick et al. 2019 (arXiv:1810.09136), LeCun et al. 2006 (Tutorial on Energy-Based Learning). Prior refs unchanged.
+- Reproduce: `python r_reliable_density.py` (pre-qk-norm magnitude / nearest-key distance / reconstruction residual, codebook MP spectrum, sanity gate).
+- **Net effect.** Five internal signal families now fail at a stored-recall = 1.000 sanity gate. Detecting stored-vs-fabricated *within* this frozen product-key memory is intractable at every read stage; reliable abstention requires an external retrieval/membership check. Creating such a signal — rather than detecting it — would mean leaving the frozen-backbone setting (a different architecture, out of scope for this repository).
+
 ## v0.4.2 — R-Safety extended: supervised probes (linear + LoRA) also fail (2026-07)
 
 **Extension of the v0.4.1 structural finding.** A fourth signal family — supervised probes on the residual stream, including the LoRA-probe headline method of Obeso et al. (2025) — is now tested against internal entity-level open-set recognition. It fails like the first three. `docs/OPENSET_MP_TYLER.md` extended with sections 4–6 and a methodological note; no code behaviour changed for the earlier phases. All in-process; every phase gated on stored-recall = 1.000; all data synthetic.
