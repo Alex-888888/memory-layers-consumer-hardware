@@ -40,7 +40,7 @@ def recall(model, tok, qa, mx=12):
         ids = tok(SF.chatml(q), return_tensors="pt").input_ids.to(DEV)
         o = model.generate(ids, max_new_tokens=mx, do_sample=False, pad_token_id=tok.eos_token_id)
         gen = tok.decode(o[0, ids.shape[1]:], skip_special_tokens=True).lower().replace(" ", "")
-        ok += int(v.lower() in gen)
+        ok += int(v.lower().replace(" ", "") in gen)
     return ok / max(1, len(qa))
 
 

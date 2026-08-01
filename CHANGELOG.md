@@ -30,7 +30,7 @@ The previously reported multi-domain bar (± 0.28, v0.2.2) was computed on the *
 
 **PPL absolute realigned for protocol consistency.** In `docs/GATE_MULTIDOMAIN.md` the WikiText-103 backbone/gated PPL absolutes are updated from 7.24 / 7.32 to **7.65 / 7.71** to match the 220k-token / 2048-window protocol already used in `docs/SPRINT0.md` and this re-derivation (the earlier 7.24 pair was inconsistent with that protocol); the reported delta moves +1.0 % → +0.82 %.
 
-**Known debt — recall metric.** Running the released `train_relevance_gate.py` end-to-end currently reports **~82 % generative recall** on the multi-domain held-out-phrasing table (which lists 100 %); a metric correction is in progress and will be published separately, with measurement. This does not affect the 0-point gated-vs-ungated gap or the gate metrics above.
+**Known debt — recall metric.** The released `train_relevance_gate.py` recall metric has been **corrected in code** (symmetric whitespace strip; the space-containing `node_coord` family was previously zeroed by an asymmetric strip). The corrected per-family recall is **being measured and will be published**. This does not affect the 0-point gated-vs-ungated gap or the gate metrics above.
 
 Docs amended: `README.md` (version badge + multi-domain figures + single-domain labelling + recall note), `docs/GATE_MULTIDOMAIN.md`, `docs/STATS.md`. No source or data change; documentation-only.
 
