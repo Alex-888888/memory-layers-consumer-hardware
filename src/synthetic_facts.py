@@ -14,9 +14,15 @@ Each family has four question phrasings: indices {0,1,2} are used to TRAIN the g
 3 is HELD OUT (never seen by the gate) for the held-out-phrasing generalisation test.
 All content here is synthetic and contains no project-specific data.
 """
-import random
+import random, hashlib
 
 FAMILIES = ["sensor_calib", "config_param", "service_ver", "node_coord", "proto_status"]
+
+
+def _stable_seed(fam, seed):
+    """Deterministic cross-process seed (NOT Python's salted hash()); stable under any PYTHONHASHSEED."""
+    return int(hashlib.sha256(f"{fam}|{seed}".encode("utf-8")).hexdigest()[:8], 16)
+
 
 PHRASINGS = {
     "sensor_calib": [
@@ -99,7 +105,7 @@ def gen_facts(n_per_family=60, seed=11, families=None):
     families = families or FAMILIES
     out = []
     for fam in families:
-        r = random.Random(hash((fam, seed)) & 0xffffffff)
+        r = random.Random(_stable_seed(fam, seed))
         seen = set()
         while len([o for o in out if o["family"] == fam]) < n_per_family:
             e = _entity(fam, r)
