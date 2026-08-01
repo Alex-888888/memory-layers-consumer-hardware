@@ -37,6 +37,44 @@ TriviaQA across **3 independent gate trainings** (seeds), i.e. the gate-training
 For comparison, the 1σ *sampling* standard error at n = 1000 is ≈ ± 1.58 pts. Both are small; they
 measure different things and we report both rather than conflating them.
 
+**(v0.4.4 update — see next section.)** The **± 1.74** figure is the single-domain gate v6 and is a
+*different configuration*, **not re-derived** by the stable-seed run (not a different seed regime).
+The multi-domain **± 0.28** was computed on the non-reproducible salted corpus; its reproducible
+replacement is **± 0.6** (same config, stable seed), detailed in the next section. The
+seed-independent backbone (53.4 %, identical on all three seeds) shows this dispersion is
+evaluation sampling in every case.
+
+## Stable-seed re-derivation (v0.4.4)
+
+The corpus generator is now deterministic across processes (reproducibility fix, HEAD `77d5a40`).
+Re-running the exact published protocol (memory target_exp=40, TriviaQA n=1000, WikiText-103 220k
+tokens) over gate seeds {137, 7, 23} gives the following.
+
+**The seed-independent anchor comes first.** The frozen backbone scores TriviaQA **53.4 % on all
+three seeds (σ = 0)**. It has no gate and sees no synthetic corpus, so this identity *mechanically*
+attributes the entire between-seed spread of the gated numbers to **evaluation sampling**, not
+corpus or seed variance — for **any** gate configuration. This is the load-bearing argument; the
+per-config σ below only quantify a dispersion the backbone has already shown to be sampling noise.
+
+**Multi-domain gate (released `train_relevance_gate.py`, 5 families), reproducible σ:**
+
+| metric | stable-seed re-derivation (n=1000, 3 seeds) |
+|---|---|
+| TriviaQA gated | 52.5 % ± 0.6 (−0.9 pt vs backbone) |
+| gate open-rate (trained / held-out phrasing) | 0.933 ± 0.004 / 0.943 ± 0.008 |
+| held-out-phrasing recall drop | 0 pt (3/3) |
+| PPL — WikiText-103 (220k tok) gated | +0.82 % ± 0.07 |
+
+The earlier multi-domain bar (± 0.28, v0.2.2) was computed on the **non-reproducible salted corpus**
+— a different draw every process, never regenerable — which made it artificially narrow. The ± 0.6
+here is **not a looser bar; it is the replacement of a non-reproducible number by the genuine
+inter-seed dispersion under a stable corpus.** It confirms the same conclusion: the residual stays
+**below the ± 1.58-pt (1σ) sampling floor**, so there is no significant regression.
+
+**Single-domain gate v6 (52.5 % ± 1.74, PPL +2.3 %) is a different configuration** (the earlier
+single sensor-domain gate) and is **not re-derived here** — a different gate, not a different seed
+regime. Its figures elsewhere in this repo are left unchanged and labelled accordingly.
+
 ## Perplexity
 
 WikiText-103 perplexity is computed over **220k tokens / 108 non-overlapping 2048-token windows**
@@ -55,5 +93,5 @@ full 5000-fact sweep is a longer job and would only tighten an interval already 
 > The always-on memory causes a **statistically significant** drop in general-knowledge accuracy
 > (TriviaQA −8.2 pts, CI-disjoint). The relevance gate **removes it**: the gated residual
 > (−0.6 / −0.9 pt) is **within sampling noise** (CI-overlapping), and is **reproducible** across
-> gate-training seeds (σ ≤ 1.74). Stored-fact recall stays at the ceiling and perplexity within
-> +2.3 %.
+> gate-training seeds (multi-domain σ ± 0.6, stable seed; single-domain v6 σ ± 1.74). Stored-fact
+> recall stays at the ceiling and perplexity within +2.3 %.

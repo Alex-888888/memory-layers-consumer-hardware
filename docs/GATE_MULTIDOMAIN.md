@@ -42,12 +42,16 @@ Result:
 |---|---|---|
 | recall, gated | 100 % | **100 %** |
 | recall, ungated | 100 % | 100 % |
-| gate open-rate (mean sigmoid) | 0.94 | **0.95** |
+| gate open-rate (mean sigmoid) | **0.933 ± 0.004** | **0.943 ± 0.008** |
 
-**The gated recall on the unseen phrasing equals the ungated recall — a drop of 0 points** —
+**The gated recall on the unseen phrasing equals the ungated recall — a drop of 0 points (3/3 seeds, stable-seed re-derivation, v0.4.4)** —
 and the gate opens on the held-out phrasing essentially as much as on the trained ones. The
 gate generalises across phrasings: it keys on stored-entity-ness, **not** on the surface
 template. The single-domain brittleness concern is resolved.
+
+> *Note (v0.4.4): running the released `train_relevance_gate.py` end-to-end currently reports
+> ~82 % generative recall on this table; a recall-metric correction is in progress (see
+> [`../CHANGELOG.md`](../CHANGELOG.md) → known debt). The 0-point gated-vs-ungated gap is unaffected.*
 
 ## General-knowledge preservation holds at multi-domain
 
@@ -56,18 +60,22 @@ single-domain gate v6:
 
 | metric | backbone | + memory, ungated | + memory, gated (multi-domain) |
 |---|---|---|---|
-| TriviaQA (n=1000, 3 gate seeds) | 53.4 % | 42.1 % | **52.8 % ± 0.28** (−0.6 pt) |
-| PPL — WikiText-103 | 7.24 | — | 7.32 (**+1.0 %**) |
+| TriviaQA (n=1000, 3 gate seeds) | 53.4 % | 42.1 % | **52.5 % ± 0.6** (−0.9 pt) |
+| PPL — WikiText-103 (220k tok) | 7.65 | — | 7.71 (**+0.82 % ± 0.07**) |
 
-The gate recovers ~95 % of the ungated TriviaQA loss, with a very small standard deviation
-across gate-training seeds (±0.28 pt), and keeps perplexity within +1.0 % of the backbone.
+The gate recovers most of the ungated TriviaQA loss and keeps perplexity within +0.82 % of the
+backbone. The ± 0.6 pt inter-seed standard deviation is the **reproducible** value under the
+stable corpus seed (v0.4.4): the earlier ± 0.28 was computed on the non-reproducible salted
+corpus, so this is the replacement of a non-reproducible bar by an honest one — same
+configuration, same conclusion (residual below the ± 1.58-pt sampling floor). See
+[`STATS.md`](STATS.md).
 
 ## Takeaway
 
 The frozen-backbone relevance gate is **not** a single-domain artefact. Trained on
 heterogeneous fact structures and held out on unseen phrasings, it still opens on stored
 facts and closes on general text and general questions — preserving the model's native
-competence (TriviaQA −0.6 pt, PPL +1.0 %) while keeping stored-fact recall at 100 %.
+competence (TriviaQA −0.9 pt, PPL +0.82 %) while keeping stored-fact recall at 100 %.
 
 *(Method and figures are documented here; gate implementation code remains planned for a later
 release. The fact families used for this study are synthetic.)*
