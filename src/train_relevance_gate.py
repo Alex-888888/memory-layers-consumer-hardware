@@ -34,7 +34,7 @@ def setcfg(wrappers, mode):
 
 
 @torch.no_grad()
-def recall(model, tok, qa, mx=12):
+def recall(model, tok, qa, mx=24):
     ok = 0
     for q, v in qa:
         ids = tok(SF.chatml(q), return_tensors="pt").input_ids.to(DEV)
