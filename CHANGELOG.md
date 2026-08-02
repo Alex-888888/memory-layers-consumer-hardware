@@ -12,6 +12,27 @@
 - **In progress.** The relevance-gate statistics reported with a ±σ "over seeds {137, 7, 23}" (e.g. TriviaQA-with-gate) were computed under the old salted regime and are being re-derived under the stable seed (following amendment). A diagnostic re-derivation under the stable seed confirmed no headline or gate conclusion changes; inter-seed variance is negligible. The forthcoming amendment refines the reported error bars, it does not revise any conclusion.
 - **Headline recall is unaffected.** The warm-up / recall pipeline (`src/data/make_synthetic.py`, `src/data/make_corpus.py`) uses integer seeds and was already reproducible.
 
+## v0.4.5 — Recall-metric debt closed: per-family generative recall = 100 % (2026-08)
+
+**Patch release. Closes the recall-metric debt flagged in v0.4.4 on a measured number; no gate metric changed.** The released `train_relevance_gate.py` `recall()` had **two stacked measurement artifacts**, now both fixed in code:
+
+1. **Asymmetric whitespace strip.** Spaces were stripped from the generated text but not the target value, so any space-containing value could never match — the `node_coord` family (values like `48.21, -3.55`) was zeroed by the metric regardless of generation. Fixed to strip both sides (matching the `p_c3` harness).
+2. **Generation budget too small (`mx=12`).** `node_coord` values reach **15 tokens** — confirmed as the theoretical maximum of the bounded value format over 20 000 draws/family plus hand-crafted signed extremes (all other families ≤ 10 tokens). `mx=12` truncated the longest coordinates. Raised to **`mx=24`** (margin 9 over the 15-token max; consistent with `recall_trivia`).
+
+**Measured closure (seed 137, held-out phrasing D, ungated memory).** Per-family generative recall (corrected metric + adequate budget) is **100 % on all five families**, identical to the exact / teacher-forced membership recall:
+
+| family | exact / membership | generative (mx=24) |
+|---|---|---|
+| sensor_calib | 100 % | 100 % |
+| config_param | 100 % | 100 % |
+| service_ver | 100 % | 100 % |
+| node_coord | 100 % | 100 % |
+| proto_status | 100 % | 100 % |
+
+`node_coord` generative recall moved 0 % → 30 % (whitespace fix) → **100 %** (budget fix). A raw-generation dump (10/10) showed every value regenerated **exactly** (`13.64, 69.84` → `13.64, 69.84.`) with **no digit drift** — the residual failures were purely truncation. The memory **regenerates faithfully; there is no regeneration limit**. Recall is a substring test (`value in generated`), robust to the trailing `.` the model appends. The published **100 %** (membership) is thus corroborated generatively.
+
+**No documentation number was wrong.** The debt was entirely two metric-measurement artifacts, not a memory or gate defect. Docs updated: `README.md` (badge + note), `docs/GATE_MULTIDOMAIN.md` (debt note replaced by the closed statement). `src/train_relevance_gate.py` carries the two code fixes.
+
 ## v0.4.4 — Reproducible multi-domain gate error bars (stable-seed re-derivation) (2026-08)
 
 **Patch release. Published means are unchanged within sampling noise; no conclusion is revised.** Building on the reproducibility fix above (HEAD `77d5a40`), the relevance-gate metrics are re-derived under the deterministic corpus seed, at the exact published protocol (memory target_exp=40, TriviaQA n=1000, WikiText-103 220k tokens, gate seeds {137, 7, 23}).
@@ -30,7 +51,7 @@ The previously reported multi-domain bar (± 0.28, v0.2.2) was computed on the *
 
 **PPL absolute realigned for protocol consistency.** In `docs/GATE_MULTIDOMAIN.md` the WikiText-103 backbone/gated PPL absolutes are updated from 7.24 / 7.32 to **7.65 / 7.71** to match the 220k-token / 2048-window protocol already used in `docs/SPRINT0.md` and this re-derivation (the earlier 7.24 pair was inconsistent with that protocol); the reported delta moves +1.0 % → +0.82 %.
 
-**Known debt — recall metric.** The released `train_relevance_gate.py` recall metric has been **corrected in code** (symmetric whitespace strip; the space-containing `node_coord` family was previously zeroed by an asymmetric strip). The corrected per-family recall is **being measured and will be published**. This does not affect the 0-point gated-vs-ungated gap or the gate metrics above.
+**Known debt — recall metric.** The released `train_relevance_gate.py` recall metric has been **corrected in code** (symmetric whitespace strip; the space-containing `node_coord` family was previously zeroed by an asymmetric strip). The corrected per-family recall is **being measured and will be published**. This does not affect the 0-point gated-vs-ungated gap or the gate metrics above. *(Closed in v0.4.5 above: measured per-family generative recall = 100 %.)*
 
 Docs amended: `README.md` (version badge + multi-domain figures + single-domain labelling + recall note), `docs/GATE_MULTIDOMAIN.md`, `docs/STATS.md`. No source or data change; documentation-only.
 

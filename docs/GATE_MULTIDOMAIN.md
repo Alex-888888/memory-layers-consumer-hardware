@@ -49,10 +49,13 @@ and the gate opens on the held-out phrasing essentially as much as on the traine
 gate generalises across phrasings: it keys on stored-entity-ness, **not** on the surface
 template. The single-domain brittleness concern is resolved.
 
-> *Note: the released `train_relevance_gate.py` recall metric has been **corrected in code**
-> (symmetric whitespace strip; the space-containing `node_coord` family was previously zeroed); the
-> corrected per-family recall is **being measured and will be published** (see
-> [`../CHANGELOG.md`](../CHANGELOG.md) → known debt). The 0-point gated-vs-ungated gap is unaffected.*
+> *Note (v0.4.5): the released `train_relevance_gate.py` recall metric had two stacked artifacts —
+> an asymmetric whitespace strip and a too-small generation budget (`mx=12`) that truncated the
+> up-to-15-token `node_coord` values — both now fixed. Measured per-family generative recall (seed
+> 137, held-out phrasing D, adequate budget) is **100 % on all five families**, matching the
+> exact/membership recall: the memory regenerates faithfully, no regeneration limit. Recall is a
+> substring test (`value in generated`), robust to the trailing `.` the model appends (e.g.
+> `13.64, 69.84.`). The 0-point gated-vs-ungated gap is unaffected.*
 
 ## General-knowledge preservation holds at multi-domain
 
