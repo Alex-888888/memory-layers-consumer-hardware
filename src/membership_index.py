@@ -16,6 +16,9 @@ FRONTIER — read this first. The mechanism's limits, made executable by the dem
      any separation comes from the name token, not entity semantics. See docs/EXTERNAL_VERIFICATION.md.
   3. Demonstrated on SYNTHETIC data only. Semantic verification on real entities is out of scope of
      this repository.
+  4. Assumes a CONTROLLED INPUT SCHEMA. The router keys on family form; the natural-language pattern
+     (two capitalised words) is deliberately broad and would mis-route any "Word Word" sequence in
+     arbitrary free text — a router for a known question schema, not an open named-entity recogniser.
 
 The PASS numbers (0 % decisional false-accept / 0 % false-refusal) are meaningful ONLY together with
 this frontier. A perfect number shown without its limit is the number-that-lies-by-omission.
