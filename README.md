@@ -2,7 +2,7 @@
 
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
-![Version](https://img.shields.io/badge/version-v0.5.0-blue)
+![Version](https://img.shields.io/badge/version-v0.6.0-blue)
 
 An **independent, from-scratch reconstruction** of *Memory Layers at Scale* (Berges et al., 2024, [arXiv:2412.09764](https://arxiv.org/abs/2412.09764)) integrated into **Qwen2.5-7B-Instruct**, trained on a **single consumer GPU** (AMD RX 7900 XTX, 24 GB, ROCm/WSL2).
 
@@ -37,6 +37,8 @@ This is **not** a reproduction of the paper at scale, and **not** a SOTA claim. 
 > **v0.4.5 (recall-metric debt closed).** The `recall()` metric in the released end-to-end script had **two stacked measurement artifacts** — an asymmetric whitespace strip and a too-small generation budget (`mx=12`) that truncated the up-to-15-token `node_coord` coordinates — both now fixed. Measured per-family generative recall (seed 137, held-out phrasing D, adequate budget) is **100 % on all five families**, identical to the exact/membership recall: the memory **regenerates faithfully, no regeneration limit**. `node_coord` moved 0 % → 30 % (whitespace fix) → 100 % (budget fix), with a raw dump showing exact regeneration and no digit drift. No documentation number was wrong — the debt was entirely metric, not a memory or gate defect. See [`CHANGELOG.md`](CHANGELOG.md).
 
 > **v0.5.0 (external membership-verification index).** The v0.4.1 finding was that *internal* stored-vs-novel detection is intractable, so reliable abstention needs an **external** check — this release ships one: an auditable, **embedding-free** membership index (form-based regex router + identifier extractor + exact/fuzzy membership) that decides stored vs novel so a system can abstain instead of fabricating. Its **frontier ships first** ([`docs/EXTERNAL_VERIFICATION.md`](docs/EXTERNAL_VERIFICATION.md)): it verifies identifier membership **not** attribute truth (a fake with a real identifier and a false attribute is accepted — the demo makes this executable), the separation is **lexical not semantic** (name-substitution control AUC 0.526), it is demonstrated on **synthetic** data only, and it assumes a **controlled input schema**. Run `python src/membership_index.py`. See [`CHANGELOG.md`](CHANGELOG.md).
+
+> **v0.6.0 (attribute normalizers).** The value-level companion to the v0.5.0 membership index: three character-level, **embedding-free** normalizers that decide whether two attribute values are the *same* by canonical form — versions vs IP by structure, units typed by physical dimension, and an exact closed acronym table (no fuzzy, gloss excluded). Its **frontier ships first** ([`docs/ATTRIBUTE_NORMALIZERS.md`](docs/ATTRIBUTE_NORMALIZERS.md)): **deterministic R1/R2 only, not semantic** — and *why*, measured: a semantic-embedding validator is **worse than nothing** on technical attributes (**AUC 0.32**, inverted — an embedder rates `v4.1.0` vs `v4.1.1` as *more* similar than a true paraphrase, discarding the very digit that separates a right value from a wrong one), so verification stays exact/character-level. Criterion false-accept ≤ 1 % (0 % on the trap pairs). **Status: validated on a bench, not yet integrated** — there is no attribute-verification step in the running assistant. Run `python src/attribute_normalizers.py`. See [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Why this exists
 
@@ -123,10 +125,11 @@ src/
   synthetic_facts.py       # 5 synthetic fact families + generic negatives
   train_relevance_gate.py  # end-to-end: train memory + gate, eval held-out phrasing / PPL / TriviaQA
   membership_index.py      # external embedding-free membership index (stored-vs-novel abstention)
+  attribute_normalizers.py # format-aware attribute normalizers (deterministic R1/R2 value verification)
   stages/                  # the staged build: product-key, Memory+, Qwen injection
   data/                    # corpus generators (synthetic + public facts + fluency)
 benchmarks/                # offload-optimizer micro-benchmark
-docs/                      # METHODOLOGY, DIAGNOSTIC, REPRODUCE, SPRINT0, GATE_MULTIDOMAIN, RELEVANCE_GATE, GENERALIZATION, BASELINES, STATS, RELATED_WORK, THREATS, SAFETY_EVAL, OPENSET_MP_TYLER, EXTERNAL_VERIFICATION
+docs/                      # METHODOLOGY, DIAGNOSTIC, REPRODUCE, SPRINT0, GATE_MULTIDOMAIN, RELEVANCE_GATE, GENERALIZATION, BASELINES, STATS, RELATED_WORK, THREATS, SAFETY_EVAL, OPENSET_MP_TYLER, EXTERNAL_VERIFICATION, ATTRIBUTE_NORMALIZERS
 data/synthetic_sample.jsonl     # tiny deterministic sample for a quick smoke test
 ```
 
