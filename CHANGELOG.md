@@ -60,7 +60,7 @@ The PASS (0 % decisional false-accept, 0 % false-refusal on the synthetic corpus
 
 **Patch release. Closes the recall-metric debt flagged in v0.4.4 on a measured number; no gate metric changed.** The released `train_relevance_gate.py` `recall()` had **two stacked measurement artifacts**, now both fixed in code:
 
-1. **Asymmetric whitespace strip.** Spaces were stripped from the generated text but not the target value, so any space-containing value could never match — the `node_coord` family (values like `48.21, -3.55`) was zeroed by the metric regardless of generation. Fixed to strip both sides (matching the `p_c3` harness).
+1. **Asymmetric whitespace strip.** Spaces were stripped from the generated text but not the target value, so any space-containing value could never match — the `node_coord` family (values like `48.21, -3.55`) was zeroed by the metric regardless of generation. Fixed to strip both sides (matching the reference harness).
 2. **Generation budget too small (`mx=12`).** `node_coord` values reach **15 tokens** — confirmed as the theoretical maximum of the bounded value format over 20 000 draws/family plus hand-crafted signed extremes (all other families ≤ 10 tokens). `mx=12` truncated the longest coordinates. Raised to **`mx=24`** (margin 9 over the 15-token max; consistent with `recall_trivia`).
 
 **Measured closure (seed 137, held-out phrasing D, ungated memory).** Per-family generative recall (corrected metric + adequate budget) is **100 % on all five families**, identical to the exact / teacher-forced membership recall:
