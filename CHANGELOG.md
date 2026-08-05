@@ -12,6 +12,31 @@
 - **In progress.** The relevance-gate statistics reported with a ±σ "over seeds {137, 7, 23}" (e.g. TriviaQA-with-gate) were computed under the old salted regime and are being re-derived under the stable seed (following amendment). A diagnostic re-derivation under the stable seed confirmed no headline or gate conclusion changes; inter-seed variance is negligible. The forthcoming amendment refines the reported error bars, it does not revise any conclusion.
 - **Headline recall is unaffected.** The warm-up / recall pipeline (`src/data/make_synthetic.py`, `src/data/make_corpus.py`) uses integer seeds and was already reproducible.
 
+## v0.6.0 — Attribute normalizers: deterministic R1/R2 verification (embedding-free) (2026-08)
+
+**Minor release — new feature.** Adds three character-level, **embedding-free** normalizers that decide whether two attribute values are the *same* by canonical form — the value-level companion to the v0.5.0 membership index (which decides *stored vs novel* at the identifier level). No network, no embedding, no training.
+
+- **M3 — versions / IP / dates.** `X.Y.Z` is shared by software versions and IP addresses; the rule types by structure (a 4-octet all-≤255 string is an IP; otherwise a version; ISO dates separately), so an IP can never match a version.
+- **M1 — units, typed by dimension.** Each unit carries its physical dimension; two values match iff same dimension and same base value. Never relate two units by a shared prefix (`100 MHz` ≠ `100 MB`) or a shared root (`dB` ≠ `dBm` ≠ `dBc`); intra-dimension scaling is exact (`1 GHz` = `1000 MHz`).
+- **M4 — acronyms, exact closed table.** A closed, auditable `sigle ↔ exact-expansion` table (bilingual), no fuzzy matching (short codes one letter apart stay distinct), and an acronym used as a *concept* (a gloss) is excluded by design.
+
+**Frontier shipped with the mechanism (`docs/ATTRIBUTE_NORMALIZERS.md`, limits first).**
+1. **deterministic R1/R2 only, not semantic** — a semantically equivalent but non-format-reducible value is out of scope (a reported false-refusal, never guessed);
+2. **why not semantic — measured:** a semantic-embedding validator was tested on a labelled bench and is *worse than nothing* on technical attributes — **AUC 0.32** (inverted): an embedder rates a wrong-value neighbour (`v4.1.0` vs `v4.1.1`, cosine ≈ 0.93) as *more* similar than a true paraphrase, because the last digit — the bit that separates right from wrong — is exactly what a meaning-encoder discards. The normalizer distinguishes them perfectly (0 % false-accept); an embedder is never a substitute for value verification;
+3. **closed, auditable table** — gloss (acronym-as-concept) excluded, checked by the dry-run;
+4. **not a general parser** — it canonicalises and compares a value already extracted for a known attribute.
+
+The criterion is false-accept-governed (**≤ 1 %**, 0 % on the trap pairs); coverage is reported as a result (non-reducible values are false-refusals, owned). In each normalizer the test on the trap pairs is written *before* the rule.
+
+**Status — validated on a bench, not integrated.** This is a characterised mechanism (0 % false-accept on the trap pairs); there is **no attribute-verification step wired into the running assistant** — not a deployed faithfulness check.
+
+### Added
+- `src/attribute_normalizers.py` — the three normalizers + a self-contained dry-run on generic example data (`python src/attribute_normalizers.py`). The acronym table and trap pairs are generic and public.
+- `docs/ATTRIBUTE_NORMALIZERS.md` — frontier-first documentation and the pre-registered criterion.
+
+### Notes
+- All shipped data is a generic public example; no acronym table, trap pairs, specs, or tokens from any private corpus are included.
+
 ## v0.5.0 — External membership-verification index (embedding-free abstention) (2026-08)
 
 **Minor release — new feature.** Adds an external, auditable, **embedding-free** membership index a system can run alongside the parametric memory to decide *stored vs novel* and abstain instead of fabricating — the external check identified as the only reliable path in v0.4.1 (internal open-set recognition is intractable). Pure string-matching: a form-based regex router, an identifier extractor, and exact + fuzzy membership against a phrasing-invariant index. No network, no embedding, no training.
@@ -36,7 +61,7 @@ The PASS (0 % decisional false-accept, 0 % false-refusal on the synthetic corpus
 **Patch release. Closes the recall-metric debt flagged in v0.4.4 on a measured number; no gate metric changed.** The released `train_relevance_gate.py` `recall()` had **two stacked measurement artifacts**, now both fixed in code:
 
 1. **Asymmetric whitespace strip.** Spaces were stripped from the generated text but not the target value, so any space-containing value could never match — the `node_coord` family (values like `48.21, -3.55`) was zeroed by the metric regardless of generation. Fixed to strip both sides (matching the `p_c3` harness).
-2. **Generation budget too small (`mx=12`).** `node_coord` values reach **15 tokens** — confirmed as the theoretical maximum of the bounded value format over 20 000 draws/family plus hand-crafted signed extremes (all other families ≤ 10 tokens). `mx=12` truncated the longest coordinates. Raised to **`mx=24`** (margin 9 over the 15-token max; consistent with `recall_trivia`).
+2. **Generation budget too small (`mx=12`).** `node_coord` values reach **15 tokens** — confirmed as the theoretical maximum of the bounded value format over 20 000 draws/family plus hand-crafted signed extremes (all other families ≤ 10 tokens). `mx=12` truncated the longest coordinates. Raised to **`mx=24`** (margin 9 over the 15-token max; consistent with `recall_trivia`).
 
 **Measured closure (seed 137, held-out phrasing D, ungated memory).** Per-family generative recall (corrected metric + adequate budget) is **100 % on all five families**, identical to the exact / teacher-forced membership recall:
 
