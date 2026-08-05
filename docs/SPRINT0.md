@@ -74,4 +74,4 @@ The three Sprint 0 gaps are answered, now at a defensible scale:
 
 Remaining: a **1M pool** (parameter offload, on larger hardware), a **multi-domain relevance gate** (v0.2.2), and more external benchmarks.
 
-Signal/ghost fusion (initially Phase E) was found unrealizable in its initial formulation and is reframed as **Phase F** (open to Vector Symbolic Architectures or similar). It is not on this repository's critical path.
+Multi-signal fusion for retrieval augmentation (as initially formulated in Phase E) was found unrealizable in its initial formulation and is reframed as **Phase F** (open to Vector Symbolic Architectures or similar). It is not on this repository's critical path.
